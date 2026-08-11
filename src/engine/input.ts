@@ -21,27 +21,44 @@ export const pointer = {
 /** Keys pressed during this frame only. */
 export const pressed = new Set<string>();
 
+/**
+ * `pointer` describes ONE pointer. Secondary touches are ignored rather than allowed to
+ * overwrite it: without this, a second finger raises a phantom `hit`, moves `x`/`y`, and
+ * lifting the first finger reports a release while the second is still on screen.
+ * Index this state by pointerId if the game ever needs real multi-touch.
+ */
+let activeId: number | null = null;
+
 const move = (e: PointerEvent) => {
   const r = canvas.getBoundingClientRect();
   pointer.x = e.clientX - r.left;
   pointer.y = e.clientY - r.top;
 };
 
+const release = () => {
+  activeId = null;
+  pointer.down = false;
+  pointer.up = true;
+};
+
 canvas.addEventListener('pointerdown', (e) => {
+  if (activeId !== null) return;
+  activeId = e.pointerId;
   move(e);
   pointer.down = pointer.hit = true;
   // Keep tracking when a drag leaves the canvas.
   canvas.setPointerCapture(e.pointerId);
 });
-canvas.addEventListener('pointermove', move);
-canvas.addEventListener('pointerup', (e) => {
-  move(e);
-  pointer.down = false;
-  pointer.up = true;
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerId === activeId) move(e);
 });
-canvas.addEventListener('pointercancel', () => {
-  pointer.down = false;
-  pointer.up = true;
+canvas.addEventListener('pointerup', (e) => {
+  if (e.pointerId !== activeId) return;
+  move(e);
+  release();
+});
+canvas.addEventListener('pointercancel', (e) => {
+  if (e.pointerId === activeId) release();
 });
 // No context menu on long press or right click mid-game.
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -53,8 +70,12 @@ addEventListener('keydown', (e) => {
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
-// Alt-Tab while a key is held would otherwise leave it stuck down forever.
-addEventListener('blur', () => keys.clear());
+// Alt-Tab while a key or button is held would otherwise leave it stuck down forever:
+// the matching keyup/pointerup lands on whatever took the focus, never on us.
+addEventListener('blur', () => {
+  keys.clear();
+  if (activeId !== null) release();
+});
 
 /** Call once per frame, after update: clears the "this frame only" state. */
 export function flush() {

@@ -7,9 +7,11 @@ import { update, draw, resize } from './game';
 
 onResized(resize);
 
-loop(update, () => {
+loop(update, (_alpha, stepped) => {
   draw();
-  // Clear the "this frame only" state here rather than in update: one frame can consume
-  // several simulation steps, and a click has to stay visible to all of them.
-  flush();
+  // Clear the "this frame only" state after the steps, not inside update: one frame can
+  // consume several steps and a click has to stay visible to all of them. Only clear it
+  // when a step actually ran — above 60 Hz many frames run none, and flushing there would
+  // drop clicks that no update ever saw.
+  if (stepped) flush();
 });

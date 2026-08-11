@@ -71,14 +71,20 @@ async function squeeze(js) {
   return res.code ?? js;
 }
 
+/**
+ * A `</script` anywhere in the payload closes the tag early and breaks the page. Checked
+ * on the JavaScript, never on the HTML — the template legitimately ends with one.
+ * This catches both a packer artifact and a literal `</script` in game text.
+ */
+const htmlUnsafe = (js) => /<\/script/i.test(js);
+
 /** Roadroller's context-mixing packer. Slow (seconds), so release builds only. */
 async function roadroll(js) {
   const packer = new Packer([{ data: js, type: 'js', action: 'eval' }], { maxMemoryMB: 150 });
   await packer.optimize(1);
   const { firstLine, secondLine } = packer.makeDecoder();
   const packed = firstLine + secondLine;
-  // A `</script` inside the payload would close the tag and break the page.
-  if (/<\/script/i.test(packed)) throw new Error('roadroller output is not HTML-safe');
+  if (htmlUnsafe(packed)) throw new Error('roadroller output is not HTML-safe');
   return packed;
 }
 
@@ -166,20 +172,24 @@ async function release() {
   }
 
   let best = null;
-  let tools = [];
   for (const c of candidates) {
+    // Hard failure, not a warning: shipping this would produce a blank page.
+    if (htmlUnsafe(c.js)) throw new Error(`'${c.name}' payload contains </script`);
     const html = inline(c.js);
     const file = join(DIST, `${c.name}.zip`);
     writeFileSync(file, zip(html));
     const before = readFileSync(file).length;
-    tools = recompress(file);
+    const tools = recompress(file);
     const size = readFileSync(file).length;
     console.log(
       `  ${c.name.padEnd(12)} js ${String(c.js.length).padStart(6)} B -> zip ${before} B -> ${size} B`,
     );
-    if (!best || size < best.size) best = { ...c, html, size, file };
+    if (!best || size < best.size) best = { ...c, html, size, file, tools };
   }
-  console.log(`  recompression: ${tools.length ? tools.join(' + ') : 'NONE (tools missing)'}`);
+  // Reported per candidate: a tool can succeed on one payload and fail on the other.
+  console.log(
+    `  recompression: ${best.tools.length ? best.tools.join(' + ') : 'NONE (tools missing)'}`,
+  );
 
   writeFileSync(join(DIST, 'index.html'), best.html);
   writeFileSync(join(ROOT, 'game.zip'), readFileSync(best.file));
