@@ -9,8 +9,11 @@
  */
 export declare const zzfx: (...params: (number | undefined)[]) => AudioBufferSourceNode;
 
-/** The AudioContext ZzFX creates when the module loads. */
-export declare const zzfxX: AudioContext;
+/**
+ * Builds the AudioContext on first call and returns it; subsequent calls return the same
+ * one. Must run before any zzfx() call — see the local additions in zzfx.js.
+ */
+export declare const zzfxInit: () => AudioContext;
 
 /** Global volume applied by ZzFX (a constant inside the library). */
 export declare const zzfxV: number;

@@ -13,7 +13,7 @@
 // ZzFXMicro - Zuper Zmall Zound Zynth - v1.3.2 by Frank Force
 
 const zzfxV = .3; // volume
-const zzfxX = new AudioContext; // audio context
+let zzfxX; // audio context — created lazily, see the local addition at the end of this file
 const zzfx = // generate samples
 (
     volume = 1, 
@@ -148,5 +148,12 @@ const zzfx = // generate samples
     return source;
 }
 
-// Local addition: ZzFXMicro is a global script; expose it as a module for the bundler.
-export { zzfx, zzfxX, zzfxV };
+// Local additions to the upstream file, both minimal:
+//
+// 1. ZzFXMicro is a global script; expose it as a module for the bundler.
+// 2. `zzfxX` was `const zzfxX = new AudioContext`, built when the module loads. Both
+//    Chrome and Firefox then warn on every page load that an AudioContext may not start
+//    before a user gesture. Creating it on the first sound instead keeps the console
+//    clean, and the first sound always follows a click or a keypress.
+export const zzfxInit = () => (zzfxX = zzfxX || new AudioContext());
+export { zzfx, zzfxV };
