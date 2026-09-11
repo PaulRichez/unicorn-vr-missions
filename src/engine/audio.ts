@@ -7,6 +7,11 @@ import { zzfx, zzfxInit } from '../vendor/zzfx.js';
 /** A ZzFX parameter array. Holes (`[,,220]`) mean "use the default". */
 export type Sound = (number | undefined)[];
 
+let muted = false;
+
+export const toggleMute = () => (muted = !muted);
+export const isMuted = () => muted;
+
 /**
  * Play a sound. The AudioContext is built on this first call rather than at load time:
  * browsers warn about a context created before any user gesture, and the first sound
@@ -14,6 +19,7 @@ export type Sound = (number | undefined)[];
  * later, typically after the tab lost focus.
  */
 export function sfx(sound: Sound) {
+  if (muted) return;
   const ac = zzfxInit();
   if (ac.state === 'suspended') ac.resume();
   zzfx(...sound);
