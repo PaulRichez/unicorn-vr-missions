@@ -12,12 +12,15 @@ import { mat, perspective, view, multiply, place, partAt } from './engine/mat';
 import { cam, player, update as moveRig, follow } from './engine/camera';
 import { sfx, toggleMute } from './engine/audio';
 import { pressed } from './engine/input';
-import { puff, dome, panel } from './mesh';
+import { puff, dome, panel, ring, mark } from './mesh';
 import { buildParts, PALETTE, SCALE, LEGS, HOOVES, HORN } from './unicorn';
 import * as Hunter from './hunter';
 import { load, LEVELS, gems, spawn, exit, wx, wz, ti, tj, solidBox, isSolid, COLS, ROWS, TILE } from './level';
 
-const FOV = 0.62; // narrow on purpose: distance plus a tight lens reads as isometric
+// Wide enough that the hunter's full sight range (5 tiles) fits on screen around the
+// player: about 14 x 9 tiles. Being spotted from off-screen is the one thing a stealth
+// game may never do.
+const FOV = 0.85;
 
 // Half-extents taken from the model rather than guessed: the muzzle ends 1.28 m ahead of
 // the origin and the tail 1.26 m behind it, on a body 0.84 m across. A shorter box lets
@@ -43,6 +46,10 @@ let scenery = load(level);
 const overlay = mesh(panel(TILE, TILE));
 const dot = mesh(panel(0.5, 0.5));
 const cloudMesh = mesh(puff(1.1));
+const gasMesh = mesh(puff(0.36));
+const ringMesh = mesh(ring(0.93, 1));
+const bang = mesh(mark(false));
+const huh = mesh(mark(true));
 const gemMesh = mesh(puff(0.3));
 const skyMesh = mesh(dome(70));
 
@@ -60,8 +67,16 @@ const hMesh = Hunter.parts.map((p) => mesh(p.geo));
 
 let bands = 0;
 let grey = 0;
-let folded = false;
-let foldT = 0;
+/** Seconds until the next fart is allowed: one trick, not a machine gun. */
+let gasCool = 0;
+/** Puffs of rainbow gas in the air: where, how old. */
+const gas: { x: number; z: number; age: number; hue: number }[] = [];
+/** Age of the last noise ring, or -1 when there is none to draw. */
+let ringAge = -1;
+let ringX = 0;
+let ringZ = 0;
+/** Seconds of the "!" freeze left after being seen, before the reset lands. */
+let caughtT = 0;
 let t = 0;
 let stride = 0;
 let gait = 0;
@@ -88,7 +103,8 @@ function reset(caught: boolean) {
   player.x = safe.x = wx(spawn.i);
   player.z = safe.z = wz(spawn.j);
   player.yaw = safe.yaw = 0;
-  folded = false;
+  gas.length = 0;
+  ringAge = -1;
   // The hunter restarts his round too, so every attempt at a level plays out the same
   // way — a patrol you can learn is the whole point of a patrol.
   Hunter.reset();
@@ -120,17 +136,34 @@ export function update(dt: number) {
   if (pressed.has('KeyM') || pressed.has('Semicolon')) toggleMute();
   if (pressed.has('KeyK')) debug = !debug;
 
-  // Space folds and unfolds. A cloud cannot walk, which is the whole cost of hiding.
-  if (pressed.has('Space')) {
-    folded = !folded;
-    sfx(folded ? [0.5, , 260, 0.05, 0.1, 0.2, 1, 0.6] : [0.5, , 180, 0.02, 0.08, 0.18, 1, 0.6]);
+  // Seen: everything holds for a beat under the "!" so the player sees what happened,
+  // then the reset lands. Nothing else moves during it.
+  if (caughtT > 0) {
+    if ((caughtT -= dt) <= 0) reset(true);
+    return;
   }
-  foldT += ((folded ? 1 : 0) - foldT) * Math.min(1, dt * 10);
+
+  // Space: the unicorn farts. Snake knocked on walls; this is the same trick, and the
+  // noise carries through walls the way sound does. The hunter comes to look.
+  gasCool -= dt;
+  if (pressed.has('Space') && gasCool <= 0 && !done) {
+    gasCool = 1.1;
+    const fx = Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+    gas.push({ x: player.x - fx * 1.3, z: player.z - fz * 1.3, age: 0, hue: Math.random() });
+    ringAge = 0;
+    ringX = player.x;
+    ringZ = player.z;
+    sfx([1.2, 0.3, 70, 0.02, 0.12, 0.28, 4, 1.4, -9, , , , , 0.9, , 0.1, 0.05]);
+    if (Hunter.hear(player.x, player.z)) sfx([0.6, , 640, 0.02, 0.05, 0.12, 1, 1.2, , , 260, 0.05], );
+  }
+  for (const g of gas) g.age += dt;
+  while (gas.length && gas[0].age > 1.1) gas.shift();
+  if (ringAge >= 0 && (ringAge += dt) > 0.7) ringAge = -1;
 
   const wasX = player.x;
   const wasZ = player.z;
   const wasYaw = player.yaw;
-  if (!folded) moveRig(dt);
+  moveRig(dt);
 
   // Turning is a move too. Left untested, a long body pivoting in a corner can swing
   // itself across two walls at once, and from there every push is refused because the
@@ -154,7 +187,7 @@ export function update(dt: number) {
   }
 
   stride += player.speed * dt * 3.1;
-  gait += ((player.speed > 0 && !folded ? 1 : 0) - gait) * Math.min(1, dt * 9);
+  gait += ((player.speed > 0 ? 1 : 0) - gait) * Math.min(1, dt * 9);
 
   follow(dt);
   Hunter.step(dt);
@@ -163,10 +196,17 @@ export function update(dt: number) {
   const pi = ti(player.x);
   const pj = tj(player.z);
 
-  if (!folded && !done && Hunter.sees(pi, pj)) reset(true);
+  if (!done && Hunter.sees(pi, pj)) {
+    // The "!" — and the sting that every Metal Gear player hears in their sleep.
+    caughtT = 0.9;
+    Hunter.hunter.mark = 2;
+    Hunter.hunter.markT = 0.9;
+    sfx([1.4, , 1100, , 0.06, 0.16, 1, 2.2, , , 400, 0.04, , , , , , 0.6, 0.02]);
+    return;
+  }
 
   for (const g of gems) {
-    if (g.taken || folded) continue;
+    if (g.taken) continue;
     if (Math.hypot(player.x - wx(g.i), player.z - wz(g.j)) < 1.2) {
       g.taken = true;
       bands++;
@@ -240,9 +280,9 @@ export function draw() {
   }
   setBlend(false);
 
-  // The unicorn, or the cloud it has folded into.
+  // The unicorn.
   place(bodyM, player.x, 0, player.z, 0, Math.PI / 2 - player.yaw, SCALE);
-  if (foldT < 0.5) {
+  {
     uParts.forEach((p, i) => {
       const leg = LEGS.indexOf(i);
       const hoof = HOOVES.indexOf(i);
@@ -265,12 +305,23 @@ export function draw() {
       if (i === HORN) setBands(Math.max(bands, 0.001), 8.5);
       drawMesh(uMesh[i], worldM, r, g, b, i === HORN && bands > 0 ? 1 : 0);
     });
-  } else {
-    // Same heading as the animal that folded: without this the shape snaps round at the
-    // moment of hiding, which reads as a swap rather than as the unicorn curling up.
-    place(tmpM, player.x, 0, player.z, 0, Math.PI / 2 - player.yaw, 0.9 + foldT * 0.1);
-    drawMesh(cloudMesh, tmpM, 1, 1, 1);
   }
+
+  // Rainbow gas, rising and thinning; the noise ring on the floor, spreading to the
+  // reach of the hunter's hearing so the player learns how far a noise carries.
+  setBlend(true);
+  for (const g of gas) {
+    const k = g.age / 1.1;
+    const [r, gg, b] = hsv(g.hue, 0.9, 1);
+    place(tmpM, g.x, 0.7 + k * 1.4, g.z, 0, g.age * 2, 0.8 + k * 1.2);
+    drawMesh(gasMesh, tmpM, r, gg, b, 0, 0.85 * (1 - k));
+  }
+  if (ringAge >= 0) {
+    const k = ringAge / 0.7;
+    place(tmpM, ringX, 0.06, ringZ, -Math.PI / 2, 0, 0.4 + k * Hunter.HEARING * TILE);
+    drawMesh(ringMesh, tmpM, 1, 1, 1, 0, 0.7 * (1 - k));
+  }
+  setBlend(false);
 
   // The hunter, walking his round.
   place(bodyM, Hunter.hunter.x, 0, Hunter.hunter.z, 0, Math.PI / 2 - Hunter.hunter.yaw, Hunter.SCALE);
@@ -281,4 +332,12 @@ export function draw() {
     const [r, g, b] = Hunter.PALETTE[p.color];
     drawMesh(hMesh[i], worldM, r, g, b);
   });
+
+  // "!" or "?" over his head, tilted to face the camera, with a small bounce.
+  if (Hunter.hunter.mark) {
+    const bounce = Math.abs(Math.sin(t * 9)) * 0.12;
+    place(tmpM, Hunter.hunter.x, 2.55 + bounce, Hunter.hunter.z, cam.pitch, 0, 1.7);
+    if (Hunter.hunter.mark === 2) drawMesh(bang, tmpM, 1, 0.12, 0.1);
+    else drawMesh(huh, tmpM, 1, 0.85, 0.2);
+  }
 }

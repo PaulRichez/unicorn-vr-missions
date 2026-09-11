@@ -34,17 +34,17 @@ export const LEVELS: Level[] = [
     ],
     route: [[10, 2], [10, 7], [7, 7], [10, 7]],
   },
-  // 2 — the corridor he walks is the only way through: fold, let him pass, move on.
+  // 2 — he paces the whole column the exit sits in, so no timing gets you there. Fart
+  // from the far side: he comes to look, and the other way round the block is clear.
   {
     map: [
-      'U.........   ',
-      '.#########.  ',
-      '.....o.....  ',
-      '.#########.  ',
-      '..........E  ',
-      '     c       ',
+      'U.......',
+      '.######.',
+      '.######E',
+      '.######.',
+      '.......c',
     ],
-    route: [[1, 2], [10, 2], [10, 4], [1, 4], [1, 2]],
+    route: [[7, 0], [7, 4]],
   },
 ];
 

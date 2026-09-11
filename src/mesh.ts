@@ -225,6 +225,50 @@ export function star(r: number): Float32Array {
   return new Float32Array(out);
 }
 
+/** Shift every vertex of a mesh — positions only, normals are left alone. */
+function shift(a: Float32Array, dx: number, dy: number, dz: number): Float32Array {
+  for (let k = 0; k < a.length; k += 6) { a[k] += dx; a[k + 1] += dy; a[k + 2] += dz; }
+  return a;
+}
+
+const join = (...parts: Float32Array[]): Float32Array => {
+  const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+};
+
+/** A slice of annulus between two angles, flat, facing +Z. */
+export function arc(r0: number, r1: number, from: number, to: number, segs = 24): Float32Array {
+  const out: number[] = [];
+  const at = (i: number, r: number): V3 => {
+    const a = from + ((to - from) * i) / segs;
+    return [Math.cos(a) * r, Math.sin(a) * r, 0];
+  };
+  for (let i = 0; i < segs; i++) {
+    quad(out, at(i, r0), at(i, r1), at(i + 1, r1), at(i + 1, r0));
+  }
+  return new Float32Array(out);
+}
+
+/** A full ring, flat, facing +Z — the reach of a noise, drawn on the floor. */
+export const ring = (r0: number, r1: number) => arc(r0, r1, 0, Math.PI * 2, 32);
+
+/**
+ * The marks over the hunter's head, the way Metal Gear drew them: "!" when he sees you,
+ * "?" when he hears something. Built from a stroke and a dot; the "?" hooks round three
+ * quarters of a ring. About 0.8 tall, meant to be scaled up and tilted at the camera.
+ */
+export function mark(question: boolean): Float32Array {
+  const dot = shift(panel(0.13, 0.13), 0, -0.42, 0);
+  if (!question) return join(shift(panel(0.12, 0.46), 0, 0.05, 0), dot);
+  return join(
+    shift(arc(0.13, 0.23, -Math.PI / 2, Math.PI, 18), 0, 0.12, 0),
+    shift(panel(0.1, 0.16), 0, -0.14, 0),
+    dot,
+  );
+}
+
 /** One band of a rainbow arch: half an annulus, flat, facing +Z. */
 export function arcBand(r0: number, r1: number, segs = 24): Float32Array {
   const out: number[] = [];

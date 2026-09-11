@@ -17,7 +17,7 @@ export const player = { x: 0, z: 0, yaw: 0, speed: 0 };
  * The original also swings to other poses in context — flat along a corridor when you
  * press to a wall, low when you crawl. Worth stealing later; this is the default one.
  */
-export const cam = { x: 0, y: 10, z: 12, yaw: 0, pitch: -1.02, dist: 17 };
+export const cam = { x: 0, y: 10, z: 12, yaw: 0, pitch: -1.12, dist: 26 };
 
 const SPEED = 3.6;
 const TURN = 7;
