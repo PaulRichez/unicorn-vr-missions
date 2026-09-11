@@ -19,7 +19,7 @@ import * as Hunter from '../src/hunter';
 const DT = 1 / 60;
 const PSPEED = 3.6; // camera.ts SPEED
 const STEP = Math.round(TILE / PSPEED / DT); // frames to cross one tile: 50
-const HALF = STEP / 2; // the tile index flips at the midpoint of the move
+const DIAG = Math.round(STEP * Math.SQRT2); // frames to cross a tile diagonally
 
 const key = (i: number, j: number) => j * COLS + i;
 const noisy = (i: number, j: number) => at(i, j) === ',' || at(i, j) === '~';
@@ -51,17 +51,21 @@ function exact(K: number): number {
       visited[k * n + tile] = 1;
       const i = tile % COLS, j = (tile / COLS) | 0;
       if (k + 1 <= K && !seen[k + 1][tile]) buckets[k + 1].add(tile);
-      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      // Eight ways, like the real player, who moves diagonally at full speed; a diagonal
+      // needs both tiles it cuts between to be free, or the body square would catch.
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
         const ni = i + di, nj = j + dj;
         if (isSolid(ni, nj) || noisy(ni, nj)) continue;
+        if (di && dj && (isSolid(i + di, j) || isSolid(i, j + dj))) continue;
         const nt = key(ni, nj);
-        const last = nt === ex ? HALF : STEP;
+        const len = di && dj ? DIAG : STEP;
+        const last = nt === ex ? len / 2 : len;
         if (k + last > K) continue;
         let ok = true;
-        for (let s = 1; s <= last && ok; s++) ok = !seen[k + s][s < HALF ? tile : nt];
+        for (let s = 1; s <= last && ok; s++) ok = !seen[k + s][s < len / 2 ? tile : nt];
         if (!ok) continue;
-        if (nt === ex) return k + HALF;
-        buckets[k + STEP].add(nt);
+        if (nt === ex) return k + last;
+        buckets[k + len].add(nt);
       }
     }
   }
@@ -87,8 +91,9 @@ function run(plan: Act[], K: number): { ok: boolean; t: number } {
       else if (act[0] === 'fart') { Hunter.hear(px, pz, Hunter.HEARING); a++; }
       else {
         const dx = wx(act[1]) - px, dz = wz(act[2]) - pz, d = Math.hypot(dx, dz);
-        if (d < 0.05) a++;
-        else { const s = Math.min(d, PSPEED * DT); px += (dx / d) * s; pz += (dz / d) * s; }
+        const s = Math.min(d, PSPEED * DT);
+        if (d > 1e-9) { px += (dx / d) * s; pz += (dz / d) * s; }
+        if (d <= PSPEED * DT) a++; // arrived this frame: no frame lost turning the corner
       }
     }
     const pi = ti(px), pj = tj(pz);

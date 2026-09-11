@@ -180,9 +180,12 @@ const hsv = (h: number, s: number, v: number): [number, number, number] => {
   return [f(5), f(3), f(1)];
 };
 
-const best = (n: number) => Number(localStorage.getItem(STORE + n) || 0);
+// Storage can throw on a profile that refuses site data; the game must not care.
+const ls = (k: string) => { try { return localStorage.getItem(STORE + k); } catch { return null; } };
+const put = (k: string, v: string) => { try { localStorage.setItem(STORE + k, v); } catch { /* keep playing */ } };
+const best = (n: number) => Number(ls(String(n))) || 0;
 /** How many missions have been cleared, ever — what the menu unlocks and the % shows. */
-const cleared = () => Number(localStorage.getItem(STORE + 'p') || 0);
+const cleared = () => Number(ls('p')) || 0;
 
 function reset(caught: boolean) {
   player.x = safe.x = wx(spawn.i);
@@ -196,7 +199,10 @@ function reset(caught: boolean) {
   // Every attempt at a level plays out the same way — a patrol you can learn is the
   // whole point of a patrol — so the colours taken this attempt go back on the floor.
   for (const g of gems) if (g.taken) { g.taken = false; bands--; }
+  gasCool = 0;
+  stride = gait = player.speed = 0;
   Hunter.reset();
+  Hunter.look(); // the gaze is on the floor while the brief is up, not only once play starts
   if (caught) {
     grey = Math.min(1, grey + FADE);
     sfx([1.1, , 90, 0.1, 0.4, 0.8, 4, 0.5, -3, , , , , 1.5, , 0.4, 0.2]);
@@ -261,7 +267,7 @@ function hud() {
   const n = two(level + 1);
   const p = cleared();
   set(pct, '<span class=x>' + Math.round((p / N) * 100) + ' %</span>');
-  set(top, phase === 'title' || phase === 'menu' ? ''
+  set(top, phase === 'title' || phase === 'menu' || phase === 'end' ? ''
     : '<span class=x>MISSION ' + n + (isMuted() ? ' · MUTED' : '') + '</span>' +
       (phase === 'play' ? (level < 2 ? '\nSPACE · FART' : '') + (fails > 2 ? '\nENTER · SKIP' : '') : ''));
   let m = '';
@@ -284,7 +290,7 @@ function hud() {
       m += '<div class="' + (k ? '' : 'b c ') + (i > p ? 'd' : '') + '">MISSION ' + two(i + 1) + (b ? '   ' + fmt(b) : '') + '</div>';
     }
     m += '<br><span class=x>EXIT</span></div></div>';
-    l = 'TARGET ' + fmt(LEVELS[cursor].par) + '\n\nUP / DOWN · CHOOSE      SPACE · START      ESC · EXIT';
+    l = (cursor <= p ? 'TARGET ' + fmt(LEVELS[cursor].par) : 'LOCKED') + '\n\nUP / DOWN · CHOOSE      SPACE · START      ESC · EXIT';
   } else if (phase === 'intro') {
     m = phaseT > 0.5 ? line('MISSION ' + n + '<div class=s><br>' + brief + '</div>', 0) : line('START', 0);
     l = 'TARGET ' + fmt(par) + '      LIMIT ' + fmt(limit);
@@ -341,6 +347,7 @@ export function update(dt: number) {
     if (pressed.has('ArrowDown') || pressed.has('KeyS')) cursor = (cursor + 1) % N;
     if (pressed.has('Escape')) phase = 'title';
     if (go && cursor <= cleared()) begin(cursor);
+    else if (go) sfx([0.6, , 120, 0.02, 0.05, 0.1, 2, 0.3]);
   } else if (phase === 'end') {
     // The camera backs off until the platform is small in the sky, and the horn draws
     // the arch it earned — through the same grey as everything else.
@@ -355,6 +362,11 @@ export function update(dt: number) {
     if ((phaseT -= dt) <= 0 || go) next();
   } else play(dt);
   hud();
+  // One press is one simulation step. The frame flushes presses only after every step it
+  // runs, so a long frame (a 30 Hz screen, a hitch, a tab coming back) would otherwise hand
+  // the same Space to two steps and carry the player from the title through the menu into
+  // mission one before they saw either.
+  pressed.clear();
 }
 
 function play(dt: number) {
@@ -403,8 +415,10 @@ function play(dt: number) {
   const fx = Math.sin(player.yaw), fz = -Math.cos(player.yaw);
   const nose = () => wallAt(player.x + fx * NOSE, player.z + fz * NOSE);
   const tail = () => wallAt(player.x - fx * TAIL, player.z - fz * TAIL);
+  const px = player.x, pz = player.z;
   for (let k = 0; k < 6 && nose(); k++) { player.x -= fx * 0.1; player.z -= fz * 0.1; }
   for (let k = 0; k < 6 && tail(); k++) { player.x += fx * 0.1; player.z += fz * 0.1; }
+  if (solidBox(player.x, player.z, 0, BODY, BODY)) { player.x = px; player.z = pz; }
 
   // Last resort. Whatever the geometry does, the pose ends the frame outside the walls.
   if (solidBox(player.x, player.z, 0, BODY, BODY) || nose() || tail()) {
@@ -477,8 +491,8 @@ function win() {
   runT += clock;
   burst(player.x, player.z, 1.1); // the one rainbow that makes no noise
   const b = best(level);
-  if (!b || clock < b) localStorage.setItem(STORE + level, clock.toFixed(1));
-  if (level + 1 > cleared()) localStorage.setItem(STORE + 'p', String(level + 1));
+  if (!DEBUG && (!b || clock < b)) put(String(level), clock.toFixed(1));
+  if (!DEBUG && level + 1 > cleared()) put('p', String(level + 1));
   sfx([, , 520, 0.02, 0.2, 0.5, 1, 1.5, , , 300, 0.06, 0.1]);
 }
 

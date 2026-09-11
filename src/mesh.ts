@@ -208,9 +208,10 @@ export function dome(r: number, rings = 10, sides = 16): Float32Array {
 export function prismSolid(
   w0: number, d0: number, w1: number, d1: number, h: number, bevel = 0.1,
 ): Float32Array {
+  const b = Math.min(bevel, w1 / 2, d1 / 2); // a tip narrower than the chamfer would turn inside out
   const out: number[] = [];
-  prism(out, [0, 0, 0, 0, 0], w0, d0, w1, d1, h - bevel);
-  prism(out, [0, h - bevel, 0, 0, 0], w1, d1, w1 - 2 * bevel, d1 - 2 * bevel, bevel);
+  prism(out, [0, 0, 0, 0, 0], w0, d0, w1, d1, h - b);
+  prism(out, [0, h - b, 0, 0, 0], w1, d1, w1 - 2 * b, d1 - 2 * b, b);
   return new Float32Array(out);
 }
 
