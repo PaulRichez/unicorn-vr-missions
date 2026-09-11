@@ -38,6 +38,8 @@ const esbuildOptions = {
   bundle: true,
   format: 'iife',
   target: 'es2020',
+  // DEBUG is true in dev builds only; terser drops what hangs off it in a release.
+  define: { DEBUG: dev ? 'true' : 'false' },
   charset: 'utf8',
   write: false,
   legalComments: 'none',

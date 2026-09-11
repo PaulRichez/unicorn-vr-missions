@@ -45,8 +45,9 @@ const PAUSE = 1.1;
 const LOOK = 2.2; // how long he stands at the noise, looking about, before giving up
 const SWEEP = 0.85;
 
-export const RANGE = 5; // tiles he can see down a clear line
-export const HALF_ANGLE = 0.62; // half the cone, in radians
+export const RANGE = 4.5; // tiles he can see down a clear line
+export const HALF_ANGLE = 0.55; // half the cone, in radians: a 63-degree wedge, like the radar's
+const NEAR = 1.5; // closer than this he notices you whatever way he faces
 export const HEARING = 8; // tiles a noise carries, walls or not — sound goes round corners
 
 export interface Hunter {
@@ -62,12 +63,18 @@ export interface Hunter {
   curious: boolean;
   /** The tiles this one can see, refreshed every step. */
   seen: boolean[];
+  /** A round of one tile is a hunter dozing on it: blind and still until a noise wakes
+   *  him — and then he stays up, sweeping his post like a lookout. */
+  asleep: boolean;
 }
 
 export const hunters: Hunter[] = [];
 
 /** The union of every hunter's sight — what the floor shows, what catches the player. */
 export let seen: boolean[] = [];
+/** The part of it seen by a hunter who is off his round investigating — drawn red, the
+ *  way the Soliton radar turned a cone red in noise mode. */
+export let alert: boolean[] = [];
 
 function resetOne(h: Hunter) {
   const [i, j] = h.route[0];
@@ -80,6 +87,7 @@ function resetOne(h: Hunter) {
   h.waiting = 0;
   h.path = [];
   h.curious = false;
+  h.asleep = h.route.length < 2;
   const [ni, nj] = h.route[h.target];
   h.yaw = Math.atan2(wx(ni) - h.x, -(wz(nj) - h.z));
   h.seen = new Array(COLS * ROWS).fill(false);
@@ -94,6 +102,7 @@ export function reset() {
     resetOne(h);
   }
   seen = new Array(COLS * ROWS).fill(false);
+  alert = new Array(COLS * ROWS).fill(false);
 }
 
 /**
@@ -110,7 +119,7 @@ function findPath(si: number, sj: number, gi: number, gj: number): [number, numb
     const [i, j] = queue.shift()!;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const ni = i + di, nj = j + dj;
-      if (isSolid(ni, nj) || prev.has(key(ni, nj))) continue;
+      if (isSolid(ni, nj) || at(ni, nj) === '-' || prev.has(key(ni, nj))) continue;
       prev.set(key(ni, nj), key(i, j));
       if (ni === gi && nj === gj) {
         const out: [number, number][] = [];
@@ -128,14 +137,15 @@ function findPath(si: number, sj: number, gi: number, gj: number): [number, numb
 }
 
 /** A noise at (x, z). Every hunter it carries to drops his round and goes to look. */
-export function hear(x: number, z: number): boolean {
+export function hear(x: number, z: number, reach = HEARING): boolean {
   const gi = ti(x), gj = tj(z);
   let heard = false;
   for (const h of hunters) {
     const hi = ti(h.x), hj = tj(h.z);
-    if (Math.hypot(gi - hi, gj - hj) > HEARING) continue;
+    if (Math.hypot(gi - hi, gj - hj) > reach) continue;
     const p = findPath(hi, hj, gi, gj);
     if (!p.length && !(gi === hi && gj === hj)) continue;
+    h.asleep = false;
     h.path = p;
     h.curious = true;
     h.waiting = 0;
@@ -162,6 +172,7 @@ function walkTo(h: Hunter, i: number, j: number, speed: number, dt: number): boo
 
 function stepOne(h: Hunter, dt: number) {
   if ((h.markT -= dt) <= 0) h.mark = 0;
+  if (h.asleep) return;
 
   if (h.waiting > 0) {
     h.waiting -= dt;
@@ -196,6 +207,32 @@ export function step(dt: number) {
 }
 
 /**
+ * Whether nothing solid stands on the straight line from a point (in tile units) to a
+ * tile's centre. Walks every tile the line crosses — a grid traversal, not a sampling,
+ * which used to let a line slip between two walls that touch at a corner — and when it
+ * passes exactly through a corner it looks at both tiles either side, so a hunter never
+ * peeks through the seam.
+ */
+function clearLine(x0: number, y0: number, i1: number, j1: number): boolean {
+  let i = Math.round(x0), j = Math.round(y0);
+  const dx = i1 - x0, dy = j1 - y0;
+  const si = Math.sign(dx), sj = Math.sign(dy);
+  // Parametric distance to the next tile border on each axis; borders sit at k + 0.5.
+  let tx = dx ? (i + si * 0.5 - x0) / dx : 2;
+  let ty = dy ? (j + sj * 0.5 - y0) / dy : 2;
+  const ddx = dx ? Math.abs(1 / dx) : 0, ddy = dy ? Math.abs(1 / dy) : 0;
+  for (let n = 0; n < 64 && (i !== i1 || j !== j1); n++) {
+    if (Math.abs(tx - ty) < 1e-6) {
+      if (blocksSight(i + si, j) || blocksSight(i, j + sj)) return false;
+      i += si; j += sj; tx += ddx; ty += ddy;
+    } else if (tx < ty) { i += si; tx += ddx; }
+    else { j += sj; ty += ddy; }
+    if ((i !== i1 || j !== j1) && blocksSight(i, j)) return false;
+  }
+  return true;
+}
+
+/**
  * Which tiles a hunter can see. A tile counts as seen when it is inside the cone, within
  * range, and nothing solid stands on the straight line to its centre — the rule
  * Invisible Inc settled on, and the reason walls are worth walking behind.
@@ -205,13 +242,14 @@ export function step(dt: number) {
  */
 function lookOne(h: Hunter) {
   h.seen.fill(false);
+  if (h.asleep) return;
   const hi = h.x / TILE + (COLS - 1) / 2;
   const hj = h.z / TILE + (ROWS - 1) / 2;
 
   for (let j = 0; j < ROWS; j++) {
     for (let i = 0; i < COLS; i++) {
       const c = at(i, j);
-      if (c === '#' || c === ' ') continue;
+      if (c === '#' || c === ' ' || c === '-') continue;
       const dx = i - hi;
       const dj = j - hj;
       const dist = Math.hypot(dx, dj);
@@ -219,20 +257,12 @@ function lookOne(h: Hunter) {
 
       let a = Math.atan2(dx, -dj) - h.yaw;
       a = Math.abs(Math.atan2(Math.sin(a), Math.cos(a)));
-      if (a > HALF_ANGLE && dist > 1.2) continue; // he still notices what is underfoot
+      if (a > HALF_ANGLE && dist > NEAR) continue; // he still notices what is underfoot
 
-      // March the line to the tile centre and stop at the first wall.
-      let clear = true;
-      const steps = Math.ceil(dist * 4);
-      for (let s = 1; s < steps; s++) {
-        const t = s / steps;
-        const si = Math.round(hi + dx * t);
-        const sj = Math.round(hj + dj * t);
-        if (blocksSight(si, sj)) { clear = false; break; }
-      }
-      if (clear) {
+      if (clearLine(hi, hj, i, j)) {
         h.seen[j * COLS + i] = true;
         seen[j * COLS + i] = true;
+        if (h.curious) alert[j * COLS + i] = true;
       }
     }
   }
@@ -240,7 +270,29 @@ function lookOne(h: Hunter) {
 
 export function look() {
   seen.fill(false);
+  alert.fill(false);
   for (const h of hunters) lookOne(h);
+}
+
+/**
+ * The snowfield rule: a hunter who sees a glitter left by the unicorn follows the trail —
+ * to its freshest mark. Stand on it and he is a tracker; be gone and he is led astray.
+ * Marks are newest last.
+ */
+export function track(marks: { i: number; j: number }[]) {
+  if (!marks.length) return;
+  for (const h of hunters) {
+    if (h.curious) continue;
+    let fresh: { i: number; j: number } | null = null;
+    for (const m of marks) if (h.seen[m.j * COLS + m.i]) fresh = m;
+    if (!fresh) continue;
+    const last = marks[marks.length - 1];
+    h.path = findPath(ti(h.x), tj(h.z), last.i, last.j);
+    h.curious = true;
+    h.waiting = 0;
+    h.mark = 1;
+    h.markT = 1.6;
+  }
 }
 
 export const sees = (i: number, j: number) => seen[j * COLS + i] === true;

@@ -199,10 +199,18 @@ export function dome(r: number, rings = 10, sides = 16): Float32Array {
   return new Float32Array(out);
 }
 
-/** A solid box, standing on the floor and extruded upward: furniture. */
-export function prismSolid(w0: number, d0: number, w1: number, d1: number, h: number): Float32Array {
+/**
+ * A solid box, standing on the floor and extruded upward, with its top edge chamfered.
+ * The bevel faces the light on two sides and turns from it on the other two, so every
+ * slab and wall shows its edge as a change of tone — the grid reads from the geometry
+ * itself, and the checkerboard no longer has to shout to be seen.
+ */
+export function prismSolid(
+  w0: number, d0: number, w1: number, d1: number, h: number, bevel = 0.1,
+): Float32Array {
   const out: number[] = [];
-  prism(out, [0, 0, 0, 0, 0], w0, d0, w1, d1, h);
+  prism(out, [0, 0, 0, 0, 0], w0, d0, w1, d1, h - bevel);
+  prism(out, [0, h - bevel, 0, 0, 0], w1, d1, w1 - 2 * bevel, d1 - 2 * bevel, bevel);
   return new Float32Array(out);
 }
 
@@ -226,12 +234,12 @@ export function star(r: number): Float32Array {
 }
 
 /** Shift every vertex of a mesh — positions only, normals are left alone. */
-function shift(a: Float32Array, dx: number, dy: number, dz: number): Float32Array {
+export function shift(a: Float32Array, dx: number, dy: number, dz: number): Float32Array {
   for (let k = 0; k < a.length; k += 6) { a[k] += dx; a[k + 1] += dy; a[k + 2] += dz; }
   return a;
 }
 
-const join = (...parts: Float32Array[]): Float32Array => {
+export const join = (...parts: Float32Array[]): Float32Array => {
   const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
   let o = 0;
   for (const p of parts) { out.set(p, o); o += p.length; }

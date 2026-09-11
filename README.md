@@ -1,11 +1,37 @@
-# js13kGames 2026
+# Unicorn VR Missions
 
-An entry for [js13kGames](https://js13kgames.com) 2026. The theme is announced on
-August 13th; for now this repository holds the build pipeline and the engine skeleton.
+An entry for [js13kGames](https://js13kgames.com) 2026, theme **Unicorns and Rainbows**.
+The name is provisional.
 
-- **Title** — to be decided
-- **Categories** — Desktop + Mobile
+A stealth game in the shape of *Metal Gear Solid: VR Missions* (Sneaking mode, no weapon):
+thirteen small floating platforms, hunters walking fixed rounds, and a white unicorn that
+has to reach the goal — a diamond turning over the exit — without being seen. The tiles a hunter can see are painted
+grey on the floor. Snake knocked on walls to pull a guard off his round; the unicorn
+farts a rainbow. Every sighting costs the mission and, for good, a little of the world's
+colour — the ending is a rainbow drawn through whatever colour you have left.
+
+- **Categories** — Desktop
 - **Budget** — 13,312 bytes, zipped
+- **Controls** — arrows / WASD move, Space farts, R restarts, M mutes, Enter skips a
+  mission after three failures
+
+## How it plays
+
+| Original (1998–99) | Here |
+|---|---|
+| Blocks floating in a digital void, a fixed overhead camera that follows Snake | Floating platforms in a care-bear sky, same camera |
+| Guard's cone of vision on the Soliton radar | The tiles he can see, painted grey on the floor; red while he investigates |
+| Knock on a wall, guard comes to look ("?") | Space: a rainbow fart, audible eight tiles through walls |
+| "!" and the alert sting | Same |
+| Noisy floor panels | Flowers that pop underfoot, audible four tiles |
+| Snow that keeps footprints | Enchanted meadow that keeps a glitter trail; a hunter who sees it follows it |
+| Crawl ducts through the blocks | Tunnels under the hedge: the unicorn slips through, hunters neither enter nor see in |
+| Waist-high walls | Fences: they stop feet, not eyes |
+| Sleeping guards | A dozing hunter: blind until a noise wakes him, then a lookout for good |
+| Rotating cameras | A lookout: a hunter who never walks, only turns |
+| The goal, a stage mark you walk onto | A rainbow diamond over the exit tile |
+| LIMIT / TIME box, 1ST / 2ND / 3RD table, MISSION FAILED, mission list with % | Same, as DOM text |
+| Restarting a mission only costs time | Being seen also drains the world's colour, permanently |
 
 ## Development
 
@@ -14,10 +40,21 @@ npm install
 npm run dev     # http://127.0.0.1:8000, rebuilds and reloads on save
 npm run build   # release zip + size report
 npm run check   # TypeScript typecheck
+node tools/solve.mjs [n] [--quick]   # play every mission with the real hunter code, report optimum times
 ```
 
-`npm run dev` prints an estimated zipped release size on every save, so the budget stays
-visible instead of being discovered at the deadline.
+`npm run dev` prints an estimated zipped release size on every save. Dev builds define
+`DEBUG` as true: in a mission, `N` clears it at once, which is how the later screens get
+tested; the release build defines it false and terser drops the code.
+
+The solver is how `par` and `limit` are set: it runs a breadth-first search over
+(tile, frame) against the hunters' fixed timeline for a silent player, and a scan of
+routes, waits and farts through the full simulation for the noisy ones. Par is 1.35 x the
+best time it finds, the limit 3.5 x. It also reports how forgiving a mission is: the share
+of naive plans that succeed, and on the most forgiving route the share of wait durations
+that do (`tolerance`) — 100 % means the route works whatever you do, 10 % means you must
+read the round. `--quick` samples fewer routes, about ten seconds a mission, for iterating
+on a map; the full run is the one that sets the numbers.
 
 ## Build pipeline
 
@@ -33,26 +70,9 @@ visible instead of being discovered at the deadline.
    binary comes from the `ect-bin` package, falling back to an `ect` on `PATH`.
 
 Steps 3 to 6 produce **two candidates**, with and without roadroller, and the smaller zip
-wins. On a modest payload the roadroller decoder (~700 B) does not pay for itself; it
-starts winning somewhere around 4-5 KB of JavaScript. The build prints both sizes, which
-keeps the trade-off visible on every release.
+wins. The build prints both sizes, which keeps the trade-off visible on every release.
 
 Output: `game.zip` at the root (the deliverable) and `dist/index.html` (plays as-is).
-
-### Measurements
-
-Taken on the boilerplate, 2026-08-11. Worth redoing on the real payload — the ratios move
-with the size of the input.
-
-| Zip recompression | Size |
-|---|---|
-| fflate, level 9 | 1985 B |
-| + advzip `-z -4` | 1985 B (no gain) |
-| + ECT `-10009` | **1944 B** (−41 B, −2.1%) |
-
-advzip was dropped on that basis. Note that ZzFX costs ~698 B zipped against ~256 B for
-the hand-rolled synth it replaced: 442 B bought a battle-tested synth with an online
-editor instead of audio code to debug.
 
 ## Structure
 
@@ -60,27 +80,41 @@ editor instead of audio code to debug.
 src/
   index.html      minimal HTML shell, __JS__ is the injection point
   main.ts         engine <-> game wiring
-  game.ts         THE game — the only file that knows the rendering technology
+  game.ts         the game: phases, HUD, rendering
+  level.ts        the thirteen missions as strings, and the loader
+  hunter.ts       the hunters: rounds, hearing, sight, tracking
+  unicorn.ts      creatures as eleven-number primitive tables
+  mesh.ts         procedural geometry: prisms, cones, clouds, arcs, marks
   engine/
+    gl.ts         WebGL2: one program, flat shading, iridescence, sky, desaturation
+    mat.ts        column-major 4x4 matrices
+    camera.ts     the fixed overhead camera and the player's movement
     view.ts       canvas, resizing, capped devicePixelRatio
-    input.ts      unified keyboard + pointer (mouse, touch, pen)
-    loop.ts       fixed 1/60 s timestep with interpolation
+    input.ts      keyboard by physical key code, single pointer
+    loop.ts       fixed 1/60 s timestep
     audio.ts      thin layer over ZzFX
   vendor/
     zzfx.js       ZzFXMicro v1.3.2, MIT, Frank Force — readable source + an ESM export
     zzfx.d.ts     local typings (the library ships none)
+tools/
+  solver.ts       plays the missions to measure their optimum times
+  solve.mjs       bundles and runs it under node, WebGL stubbed out
 ```
 
-The engine assumes no rendering technology: `view.ts` only hands out a sized `<canvas>`.
-Moving from Canvas 2D to WebGL2 touches `game.ts` alone.
+A level is a drawing: space is void, `.` floor, `#` wall, `U` start, `E` exit, `c` a
+colour to take, `,` flowers, `~` meadow, `-` a tunnel under the hedge, `=` a fence. A
+hunter is a list of tiles he walks between; one tile repeated twice is a lookout who only
+turns, one tile alone is a hunter asleep on it. A hunter walks straight between two
+consecutive waypoints without checking for walls, so no round may cross a `#`, `=`, `-`
+or void.
 
 ## Competition constraints
 
 - 13,312 bytes maximum for the `.zip`, with `index.html` at the archive root.
 - No external resources: everything ships inside the zip.
 - Must run without console errors on current Chrome and Firefox.
-- `localStorage`: namespace every key and never call `localStorage.clear()` — all
-  competition entries share one origin.
+- `localStorage`: every key is prefixed `lic13.` and nothing ever calls
+  `localStorage.clear()` — all competition entries share one origin.
 
 ## Licence
 

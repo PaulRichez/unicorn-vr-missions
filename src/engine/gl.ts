@@ -36,6 +36,16 @@ void main(){
 // instead of wrapping back round to red. The sheen term moves brightness only — moving
 // the hue with the viewing angle would smear the bands into each other.
 //
+// Lighting is a hemisphere under one key. The ambient term blends a warm sky tint above
+// into a pink bounce below by the normal's height, so a face the key never reaches still
+// reads as one side of a volume rather than a flat cut-out; the key stays overhead so the
+// top faces remain the brightest thing on the platform.
+//
+// Below the floor line there is only the void, so anything there — the sides of the slabs —
+// fogs toward the sky colour with depth. The platform then floats in the sky instead of
+// ending on a hard dark edge. The fog colour is the clear colour before the drain, which
+// is applied after it, so a fogged side greys out with the rest.
+//
 // The dark itself is never drawn. It is only the last three lines: colour leaving the
 // world around a point, which is what tells the player where it stands without a single
 // marker on screen.
@@ -79,7 +89,7 @@ void main(){
   vec3 n = normalize(vN);
   vec3 v = normalize(uEye - vP);
   float d = max(dot(n, normalize(vec3(.35, .9, .25))), 0.);
-  vec3 c = uCol * (.4 + .6 * d);
+  vec3 c = uCol * (mix(vec3(.5, .3, .45), vec3(.62, .58, .52), n.y * .5 + .5) + .5 * d);
 
   if (uIrid > .5) {
     float t = clamp(vL * uBand.y, 0., .999);
@@ -87,6 +97,8 @@ void main(){
     float sheen = 1. - abs(dot(n, v));
     c = hsv(hue, .95, .5 + .3 * d + .25 * sheen);
   }
+
+  c = mix(c, vec3(.42, .2, .5), clamp(-vP.y * 1.2, 0., 1.) * .7);
 
   vec2 wp = uIrid > .5 ? uAt : vP.xz;
   float g = max(uGrey, 1. - smoothstep(uDark.z * .3, uDark.z, distance(wp, uDark.xy)));

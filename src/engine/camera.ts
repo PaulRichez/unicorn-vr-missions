@@ -43,8 +43,9 @@ function turnToward(from: number, to: number, max: number) {
 
 /** Movement reads relative to the screen: up on the keys is away from the camera. */
 export function update(dt: number) {
-  const f = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
-  const s = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+  const k = (a: string, b: string) => (keys.has(a) || keys.has(b) ? 1 : 0);
+  const f = k('KeyW', 'ArrowUp') - k('KeyS', 'ArrowDown');
+  const s = k('KeyD', 'ArrowRight') - k('KeyA', 'ArrowLeft');
 
   player.speed = 0;
   if (!f && !s) return;
