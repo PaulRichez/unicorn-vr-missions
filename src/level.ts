@@ -14,8 +14,11 @@ import { prismSolid, puff } from './mesh';
 
 export interface Level {
   map: string[];
-  /** Tiles the hunter walks between, in order, then back to the first. */
-  route: [number, number][];
+  /** One round per hunter: tiles he walks between, in order, then back to the first. */
+  routes: [number, number][][];
+  /** Target and limit, in seconds, the way every VR mission carried both. */
+  par: number;
+  limit: number;
 }
 
 export const LEVELS: Level[] = [
@@ -32,7 +35,9 @@ export const LEVELS: Level[] = [
       ' ....##..E.',
       '  .......  ',
     ],
-    route: [[10, 2], [10, 7], [7, 7], [10, 7]],
+    routes: [[[10, 2], [10, 7], [7, 7], [10, 7]]],
+    par: 20,
+    limit: 60,
   },
   // 2 — he paces the whole column the exit sits in, so no timing gets you there. Fart
   // from the far side: he comes to look, and the other way round the block is clear.
@@ -44,7 +49,9 @@ export const LEVELS: Level[] = [
       '.######.',
       '.......c',
     ],
-    route: [[7, 0], [7, 4]],
+    routes: [[[7, 0], [7, 4]]],
+    par: 25,
+    limit: 70,
   },
 ];
 
@@ -61,7 +68,9 @@ export let spawn = { i: 0, j: 0 };
 export let exit = { i: 0, j: 0 };
 export let gems: { i: number; j: number; hue: number; taken: boolean }[] = [];
 export let covers: { i: number; j: number }[] = [];
-export let route: [number, number][] = [];
+export let routes: [number, number][][] = [];
+export let par = 0;
+export let limit = 0;
 
 export const wx = (i: number) => (i - (COLS - 1) / 2) * TILE;
 export const wz = (j: number) => (j - (ROWS - 1) / 2) * TILE;
@@ -114,7 +123,9 @@ export function load(n: number): Part[] {
   MAP = lv.map;
   ROWS = MAP.length;
   COLS = Math.max(...MAP.map((r) => r.length));
-  route = lv.route;
+  routes = lv.routes;
+  par = lv.par;
+  limit = lv.limit;
   gems = [];
   covers = [];
 

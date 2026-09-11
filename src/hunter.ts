@@ -1,12 +1,13 @@
-// The hunter. In the medieval tapestries a unicorn cannot be taken by force — only by
-// patience and trickery — so he does not chase. He walks his round, and what he can see
-// is what matters. What he can hear matters too: a noise pulls him off his round to go
-// and look, the way Snake's knock on a wall did, and that is the player's one trick.
+// The hunters. In the medieval tapestries a unicorn cannot be taken by force — only by
+// patience and trickery — so they do not chase. Each walks his round, and what he can
+// see is what matters. What he can hear matters too: a noise pulls him off his round to
+// go and look, the way Snake's knock on a wall did, and that is the player's one trick.
 //
-// Same eleven-number table as the unicorn, so he costs geometry data and nothing else.
+// Same eleven-number table as the unicorn, so a hunter costs geometry data and nothing
+// else; a level with three of them costs three routes.
 
 import { buildFrom, type Part } from './unicorn';
-import { at, blocksSight, isSolid, wx, wz, ti, tj, route, COLS, ROWS, TILE } from './level';
+import { at, blocksSight, isSolid, wx, wz, ti, tj, routes, COLS, ROWS, TILE } from './level';
 
 //            t   x   y   z  s1  s2  s3  rz  rx col fl
 const TABLE = [
@@ -38,9 +39,6 @@ export const PALETTE: [number, number, number][] = [
 export const parts: Part[] = buildFrom(TABLE);
 export const SCALE = 0.058;
 
-/** mark: 0 nothing, 1 the "?" of a heard noise, 2 the "!" of a sighting; markT = seconds left. */
-export const hunter = { x: 0, z: 0, yaw: 0, leg: 0, mark: 0, markT: 0 };
-
 const SPEED = 1.9;
 const HURRY = 2.6; // a man going to check on a noise walks faster than one on his round
 const PAUSE = 1.1;
@@ -51,27 +49,50 @@ export const RANGE = 5; // tiles he can see down a clear line
 export const HALF_ANGLE = 0.62; // half the cone, in radians
 export const HEARING = 8; // tiles a noise carries, walls or not — sound goes round corners
 
-let target = 1;
-let waiting = 0;
-/** Tiles still to walk, nearest first. Empty while on the round between waypoints. */
-let path: [number, number][] = [];
-/** True while he is off his round chasing a noise; back to false once he has looked. */
-let curious = false;
+export interface Hunter {
+  x: number; z: number; yaw: number; leg: number;
+  /** 0 nothing, 1 the "?" of a heard noise, 2 the "!" of a sighting; markT = seconds left. */
+  mark: number; markT: number;
+  route: [number, number][];
+  target: number;
+  waiting: number;
+  /** Tiles still to walk, nearest first. Empty while on the round between waypoints. */
+  path: [number, number][];
+  /** True while off the round chasing a noise; back to false once he has looked. */
+  curious: boolean;
+  /** The tiles this one can see, refreshed every step. */
+  seen: boolean[];
+}
 
-/** Put him on the first tile of the loaded level's round, facing the second. */
+export const hunters: Hunter[] = [];
+
+/** The union of every hunter's sight — what the floor shows, what catches the player. */
+export let seen: boolean[] = [];
+
+function resetOne(h: Hunter) {
+  const [i, j] = h.route[0];
+  h.x = wx(i);
+  h.z = wz(j);
+  h.leg = 0;
+  h.mark = 0;
+  h.markT = 0;
+  h.target = 1 % h.route.length;
+  h.waiting = 0;
+  h.path = [];
+  h.curious = false;
+  const [ni, nj] = h.route[h.target];
+  h.yaw = Math.atan2(wx(ni) - h.x, -(wz(nj) - h.z));
+  h.seen = new Array(COLS * ROWS).fill(false);
+}
+
+/** One hunter per route of the loaded level, each at the start of his round. */
 export function reset() {
-  const [i, j] = route[0];
-  hunter.x = wx(i);
-  hunter.z = wz(j);
-  hunter.leg = 0;
-  hunter.mark = 0;
-  hunter.markT = 0;
-  target = 1 % route.length;
-  waiting = 0;
-  path = [];
-  curious = false;
-  const [ni, nj] = route[target];
-  hunter.yaw = Math.atan2(wx(ni) - hunter.x, -(wz(nj) - hunter.z));
+  hunters.length = 0;
+  for (const route of routes) {
+    const h = { route } as Hunter;
+    hunters.push(h);
+    resetOne(h);
+  }
   seen = new Array(COLS * ROWS).fill(false);
 }
 
@@ -106,80 +127,86 @@ function findPath(si: number, sj: number, gi: number, gj: number): [number, numb
   return [];
 }
 
-/** A noise at (x, z). If it carries this far, he drops the round and goes to look. */
+/** A noise at (x, z). Every hunter it carries to drops his round and goes to look. */
 export function hear(x: number, z: number): boolean {
   const gi = ti(x), gj = tj(z);
-  const hi = ti(hunter.x), hj = tj(hunter.z);
-  if (Math.hypot(gi - hi, gj - hj) > HEARING) return false;
-  const p = findPath(hi, hj, gi, gj);
-  if (!p.length && !(gi === hi && gj === hj)) return false;
-  path = p;
-  curious = true;
-  waiting = 0;
-  hunter.mark = 1;
-  hunter.markT = 1.6;
-  return true;
+  let heard = false;
+  for (const h of hunters) {
+    const hi = ti(h.x), hj = tj(h.z);
+    if (Math.hypot(gi - hi, gj - hj) > HEARING) continue;
+    const p = findPath(hi, hj, gi, gj);
+    if (!p.length && !(gi === hi && gj === hj)) continue;
+    h.path = p;
+    h.curious = true;
+    h.waiting = 0;
+    h.mark = 1;
+    h.markT = 1.6;
+    heard = true;
+  }
+  return heard;
 }
 
-/** Walk towards a tile; true once he is standing on it. */
-function walkTo(i: number, j: number, speed: number, dt: number): boolean {
-  const dx = wx(i) - hunter.x;
-  const dz = wz(j) - hunter.z;
+/** Walk towards a tile; true once standing on it. */
+function walkTo(h: Hunter, i: number, j: number, speed: number, dt: number): boolean {
+  const dx = wx(i) - h.x;
+  const dz = wz(j) - h.z;
   const d = Math.hypot(dx, dz);
   if (d < 0.12) return true;
   const s = Math.min(d, speed * dt);
-  hunter.x += (dx / d) * s;
-  hunter.z += (dz / d) * s;
-  hunter.yaw = Math.atan2(dx, -dz);
-  hunter.leg += dt * 7;
+  h.x += (dx / d) * s;
+  h.z += (dz / d) * s;
+  h.yaw = Math.atan2(dx, -dz);
+  h.leg += dt * 7;
   return false;
 }
 
-export function step(dt: number) {
-  if ((hunter.markT -= dt) <= 0) hunter.mark = 0;
+function stepOne(h: Hunter, dt: number) {
+  if ((h.markT -= dt) <= 0) h.mark = 0;
 
-  if (waiting > 0) {
-    waiting -= dt;
+  if (h.waiting > 0) {
+    h.waiting -= dt;
     // Standing still, he sweeps his gaze — the moment the player waits out.
-    hunter.yaw += Math.sin(waiting * 2.4) * SWEEP * dt * 2;
-    if (waiting <= 0 && curious) {
+    h.yaw += Math.sin(h.waiting * 2.4) * SWEEP * dt * 2;
+    if (h.waiting <= 0 && h.curious) {
       // Nothing there. Back to the round, by the shortest walk to the next waypoint.
-      curious = false;
-      const [gi, gj] = route[target];
-      path = findPath(ti(hunter.x), tj(hunter.z), gi, gj);
+      h.curious = false;
+      const [gi, gj] = h.route[h.target];
+      h.path = findPath(ti(h.x), tj(h.z), gi, gj);
     }
     return;
   }
 
-  if (path.length) {
-    if (walkTo(path[0][0], path[0][1], curious ? HURRY : SPEED, dt)) {
-      path.shift();
-      if (!path.length && curious) waiting = LOOK;
+  if (h.path.length) {
+    if (walkTo(h, h.path[0][0], h.path[0][1], h.curious ? HURRY : SPEED, dt)) {
+      h.path.shift();
+      if (!h.path.length && h.curious) h.waiting = LOOK;
     }
     return;
   }
 
-  const [gi, gj] = route[target];
-  if (walkTo(gi, gj, SPEED, dt)) {
-    target = (target + 1) % route.length;
-    waiting = PAUSE;
+  const [gi, gj] = h.route[h.target];
+  if (walkTo(h, gi, gj, SPEED, dt)) {
+    h.target = (h.target + 1) % h.route.length;
+    h.waiting = PAUSE;
   }
 }
 
+export function step(dt: number) {
+  for (const h of hunters) stepOne(h, dt);
+}
+
 /**
- * Which tiles he can see. A tile counts as seen when it is inside the cone, within
+ * Which tiles a hunter can see. A tile counts as seen when it is inside the cone, within
  * range, and nothing solid stands on the straight line to its centre — the rule
  * Invisible Inc settled on, and the reason walls are worth walking behind.
  *
  * Deliberately per tile rather than a smooth gradient: a soft edge looks better and
  * plans worse, and a stealth player has to know, not guess.
  */
-export let seen: boolean[] = [];
-
-export function look() {
-  seen.fill(false);
-  const hi = hunter.x / TILE + (COLS - 1) / 2;
-  const hj = hunter.z / TILE + (ROWS - 1) / 2;
+function lookOne(h: Hunter) {
+  h.seen.fill(false);
+  const hi = h.x / TILE + (COLS - 1) / 2;
+  const hj = h.z / TILE + (ROWS - 1) / 2;
 
   for (let j = 0; j < ROWS; j++) {
     for (let i = 0; i < COLS; i++) {
@@ -190,7 +217,7 @@ export function look() {
       const dist = Math.hypot(dx, dj);
       if (dist > RANGE) continue;
 
-      let a = Math.atan2(dx, -dj) - hunter.yaw;
+      let a = Math.atan2(dx, -dj) - h.yaw;
       a = Math.abs(Math.atan2(Math.sin(a), Math.cos(a)));
       if (a > HALF_ANGLE && dist > 1.2) continue; // he still notices what is underfoot
 
@@ -203,9 +230,20 @@ export function look() {
         const sj = Math.round(hj + dj * t);
         if (blocksSight(si, sj)) { clear = false; break; }
       }
-      if (clear) seen[j * COLS + i] = true;
+      if (clear) {
+        h.seen[j * COLS + i] = true;
+        seen[j * COLS + i] = true;
+      }
     }
   }
 }
 
+export function look() {
+  seen.fill(false);
+  for (const h of hunters) lookOne(h);
+}
+
 export const sees = (i: number, j: number) => seen[j * COLS + i] === true;
+
+/** Which hunters have this tile in sight right now — for putting the "!" over their heads. */
+export const seers = (i: number, j: number) => hunters.filter((h) => h.seen[j * COLS + i]);
