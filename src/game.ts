@@ -6,12 +6,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { W, H, DPR } from './engine/view';
-import { gl, mesh, frame, draw as drawMesh, setBands, setDark, setBlend, setSky } from './engine/gl';
+import { gl, mesh, frame, draw as drawMesh, setBands, setDark, setBlend, setSky, setFade } from './engine/gl';
 import { mat, perspective, view, multiply, place, partAt } from './engine/mat';
 import { cam, player, update as moveRig, follow } from './engine/camera';
 import { sfx, toggleMute, isMuted } from './engine/audio';
 import { pressed } from './engine/input';
-import { puff, dome, panel, ring, mark, arcBand, prismSolid, join, shift } from './mesh';
+import { puff, dome, panel, ring, mark, arc, prismSolid, join, shift } from './mesh';
 import { buildParts, PALETTE, SCALE, LEGS, HOOVES, HORN } from './unicorn';
 import * as Hunter from './hunter';
 import {
@@ -67,9 +67,10 @@ const skyMesh = mesh(dome(95)); // wide enough that the title's rainbow never cr
 /**
  * The seven bands of a rainbow, each its own mesh with its own radii, so that no band
  * overlaps its neighbour: two coplanar bands fighting for the same pixels tore the
- * ending's arch apart. Scaled together they stay edge to edge.
+ * ending's arch apart. Scaled together they stay edge to edge. Each runs a little past
+ * the half circle, below the ground, so the fade has feet to dissolve.
  */
-const arcMeshes = Array.from({ length: 7 }, (_, i) => mesh(arcBand(17 + i * 1.15, 18.15 + i * 1.15)));
+const arcMeshes = Array.from({ length: 7 }, (_, i) => mesh(arc(17 + i * 1.15, 18.15 + i * 1.15, -0.35, Math.PI + 0.35, 30)));
 /** The goal: a diamond, the stage mark hovering over the exit the way people remember it. */
 const goalMesh = mesh(join(shift(prismSolid(1, 1, 0.02, 0.02, 0.8), 0, 0.8, 0), prismSolid(0.02, 0.02, 1, 1, 0.8)));
 
@@ -487,12 +488,16 @@ function win() {
  * rainbow. Drawn through the world's grey like everything else.
  */
 function arch(x: number, z: number, rx: number, k: number, twice: boolean) {
+  setBlend(true);
+  setFade(7);
   for (let i = 0; i < (twice ? 14 : 7); i++) {
     const j = i % 7;
     const [r, g, b] = hsv(((i < 7 ? 6 - j : j) / 7) * 0.82, 0.95, 1);
     place(tmpM, x, 0.5, z, rx, 0, k * (i < 7 ? 1 : 1.6));
-    drawMesh(arcMeshes[j], tmpM, r, g, b);
+    drawMesh(arcMeshes[j], tmpM, r, g, b, 0, i < 7 ? 1 : 0.6);
   }
+  setFade(0);
+  setBlend(false);
 }
 
 /**
@@ -678,5 +683,5 @@ export function draw() {
   }
   // The title's rainbow stands behind the far edge of the platform, the one time the
   // camera is low enough to see a whole one.
-  if (phase === 'title' || phase === 'menu') arch(0, wz(0) - 4, -0.3, 0.42 + COLS * 0.05, false);
+  if (phase === 'title' || phase === 'menu') arch(0, wz(0) - 4, -0.3, 0.38 + COLS * 0.045, false);
 }

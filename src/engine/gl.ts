@@ -62,6 +62,7 @@ uniform vec3 uDark;
 uniform vec2 uAt;
 uniform float uGrey;
 uniform float uAlpha;
+uniform float uFade;
 uniform vec3 uSky2;
 uniform float uSkyMode;
 out vec4 o;
@@ -104,7 +105,7 @@ void main(){
   float g = max(uGrey, 1. - smoothstep(uDark.z * .3, uDark.z, distance(wp, uDark.xy)));
   c = mix(c, vec3(dot(c, vec3(.3, .59, .11))), g);
 
-  o = vec4(c, uAlpha);
+  o = vec4(c, uAlpha * (uFade > 0. ? clamp(vL / uFade, 0., 1.) : 1.));
 }`;
 
 function shader(type: number, src: string) {
@@ -130,6 +131,7 @@ const uDark = gl.getUniformLocation(program, 'uDark');
 const uAt = gl.getUniformLocation(program, 'uAt');
 const uGrey = gl.getUniformLocation(program, 'uGrey');
 const uAlpha = gl.getUniformLocation(program, 'uAlpha');
+const uFade = gl.getUniformLocation(program, 'uFade');
 const uSky2 = gl.getUniformLocation(program, 'uSky2');
 const uSkyMode = gl.getUniformLocation(program, 'uSkyMode');
 
@@ -148,6 +150,14 @@ export function setBlend(on: boolean) {
 }
 
 /** How many colour bands the horn carries, and how long it is. */
+/**
+ * A vertical fade: below local y = 0 a mesh is invisible, at y = f fully there. Zero turns
+ * it off. Only the rainbow uses it — its feet dissolve into the air the way real ones do,
+ * instead of ending on two hard stumps in the sky.
+ */
+export function setFade(f: number) {
+  gl.uniform1f(uFade, f);
+}
 export function setBands(count: number, length: number) {
   gl.uniform2f(uBand, count, 1 / length);
 }
