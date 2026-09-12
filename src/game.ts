@@ -394,7 +394,7 @@ function play(dt: number) {
   // noise carries through walls the way sound does. Any hunter in earshot comes to look.
   gasCool -= dt;
   if (pressed.has('Space') && gasCool <= 0) {
-    gasCool = 1.1;
+    gasCool = 3; // one trick at a time: a lure is a decision, not a machine gun
     const fx = Math.sin(player.yaw), fz = -Math.cos(player.yaw);
     burst(player.x - fx * 1.3, player.z - fz * 1.3, 1.1);
     sfx([1.2, 0.3, 70, 0.02, 0.12, 0.28, 4, 1.4, -9, , , , , 0.9, , 0.1, 0.05]);

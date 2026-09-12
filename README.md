@@ -5,8 +5,8 @@ The name is provisional.
 
 A stealth game in the shape of *Metal Gear Solid: VR Missions* (Sneaking mode, no weapon):
 thirteen small floating platforms, hunters walking fixed rounds, and a white unicorn that
-has to reach the goal — a diamond turning over the exit — without being seen. The tiles a hunter can see are painted
-grey on the floor. Snake knocked on walls to pull a guard off his round; the unicorn
+has to reach the goal — a diamond turning over the exit — without being seen. The tiles a
+hunter can see are painted grey on the floor. Snake knocked on walls to pull a guard off his round; the unicorn
 farts a rainbow. Every sighting costs the mission and, for good, a little of the world's
 colour — the ending is a rainbow drawn through whatever colour you have left.
 
@@ -21,7 +21,7 @@ colour — the ending is a rainbow drawn through whatever colour you have left.
 |---|---|
 | Blocks floating in a digital void, a fixed overhead camera that follows Snake | Floating platforms in a care-bear sky, same camera |
 | Guard's cone of vision on the Soliton radar | The tiles he can see, painted grey on the floor; red while he investigates |
-| Knock on a wall, guard comes to look ("?") | Space: a rainbow fart, audible eight tiles through walls |
+| Knock on a wall, guard comes to look ("?") | Space: a rainbow fart, audible six tiles through walls, one every three seconds |
 | "!" and the alert sting | Same |
 | Noisy floor panels | Flowers that pop underfoot, audible four tiles |
 | Snow that keeps footprints | Enchanted meadow that keeps a glitter trail; a hunter who sees it follows it |

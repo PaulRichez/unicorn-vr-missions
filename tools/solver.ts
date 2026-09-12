@@ -114,8 +114,13 @@ function run(plan: Act[], K: number): { ok: boolean; t: number } {
   return { ok: false, t: K * DT };
 }
 
-/** Candidate routes: simple paths from U to E, never straying far from the shortest way. */
-function routes(maxExtra: number, cap: number): [number, number][][] {
+/**
+ * Candidate routes: simple paths from U to E, never straying far from the shortest way.
+ * With `quiet` the flower and meadow tiles count as walls, so the long way round a noisy
+ * shortcut is sampled too — it is often the only way that works.
+ */
+function routes(maxExtra: number, cap: number, quiet = false): [number, number][][] {
+  const solid = (i: number, j: number) => isSolid(i, j) || (quiet && noisy(i, j));
   const dist = new Int32Array(COLS * ROWS).fill(-1);
   const q: [number, number][] = [[exit.i, exit.j]];
   dist[key(exit.i, exit.j)] = 0;
@@ -123,7 +128,7 @@ function routes(maxExtra: number, cap: number): [number, number][][] {
     const [i, j] = q.shift()!;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const ni = i + di, nj = j + dj;
-      if (isSolid(ni, nj) || dist[key(ni, nj)] >= 0) continue;
+      if (solid(ni, nj) || dist[key(ni, nj)] >= 0) continue;
       dist[key(ni, nj)] = dist[key(i, j)] + 1;
       q.push([ni, nj]);
     }
@@ -140,7 +145,7 @@ function routes(maxExtra: number, cap: number): [number, number][][] {
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const ni = i + di, nj = j + dj;
       const k = key(ni, nj);
-      if (isSolid(ni, nj) || on[k]) continue;
+      if (solid(ni, nj) || on[k]) continue;
       if (path.length + dist[k] > shortest + maxExtra) continue;
       on[k] = 1; path.push([ni, nj]);
       dfs(ni, nj);
@@ -160,11 +165,17 @@ function plans(K: number) {
   let clean = 0, total = 0;
   /** The most forgiving plan family: of the waits tried on one route/spot/fart, how many work. */
   let tol = 0;
+  /** The same, counting only the families that never fart — the lure resets every round, so
+   *  a fart-first family is forgiving by nature; this says how the map plays without it. */
+  let tol0 = 0;
   const WAITS = QUICK ? 1 : 0.5;
   // Every route within four tiles of the shortest, then a spread of at most sixty of
   // them: the shortest two dozen and an even sample of the rest, so no side of a map
   // is skipped just because the search happened to turn right first.
-  const all = routes(4, 3000).sort((a, b) => a.length - b.length);
+  const seenRoute = new Set<string>();
+  const all = [...routes(4, 3000), ...routes(4, 3000, true)]
+    .filter((r) => { const k = JSON.stringify(r); return !seenRoute.has(k) && seenRoute.add(k); })
+    .sort((a, b) => a.length - b.length);
   const CAP = QUICK ? 12 : 60, HEAD = QUICK ? 5 : 24;
   const paths = all.length <= CAP ? all : [...all.slice(0, HEAD), ...Array.from({ length: CAP - HEAD }, (_, k) => all[HEAD + Math.floor((k * (all.length - HEAD)) / (CAP - HEAD))])];
   for (const p of paths) {
@@ -198,10 +209,11 @@ function plans(K: number) {
           if (r.t < best.t) best = { t: r.t, plan };
         }
         tol = Math.max(tol, ok / tried);
+        if (!fart) tol0 = Math.max(tol0, ok / tried);
       }
     }
   }
-  return { ...best, clean, total, tol, paths: paths.length };
+  return { ...best, clean, total, tol, tol0, paths: paths.length };
 }
 
 // ------------------------------------------------------------------------------- main ---
@@ -222,9 +234,9 @@ for (let n = 0; n < LEVELS.length; n++) {
   const opt = Math.min(ex < 0 ? Infinity : ex / 60, pl.t);
   // Par at 1.35 x the optimum leaves room for human hands; the limit at 3.5 x it, never
   // under 30 s, leaves room for one full round of watching before committing.
-  const rec = { level: n + 1, exact: ex < 0 ? null : +(ex / 60).toFixed(2), plans: pl.t === Infinity ? null : +pl.t.toFixed(2), clean: pl.clean, total: pl.total, ratio: +(pl.clean / pl.total).toFixed(3), tolerance: +pl.tol.toFixed(2), routes: pl.paths, plan: pl.plan.map((a) => a.join(',')).join(' '), par: lv.par, limit: lv.limit, suggestPar: opt === Infinity ? null : Math.ceil(opt * 1.35), suggestLimit: opt === Infinity ? null : Math.max(30, Math.ceil((opt * 3.5) / 5) * 5) };
+  const rec = { level: n + 1, exact: ex < 0 ? null : +(ex / 60).toFixed(2), plans: pl.t === Infinity ? null : +pl.t.toFixed(2), clean: pl.clean, total: pl.total, ratio: +(pl.clean / pl.total).toFixed(3), tolerance: +pl.tol.toFixed(2), silentTolerance: +pl.tol0.toFixed(2), routes: pl.paths, plan: pl.plan.map((a) => a.join(',')).join(' '), par: lv.par, limit: lv.limit, suggestPar: opt === Infinity ? null : Math.ceil(opt * 1.35), suggestLimit: opt === Infinity ? null : Math.max(30, Math.ceil((opt * 3.5) / 5) * 5) };
   summary.push(rec);
-  console.log(`L${String(n + 1).padStart(2, '0')}  exact ${rec.exact ?? '   -'}  plans ${rec.plans ?? '   -'}  clean ${pl.clean}/${pl.total} = ${(rec.ratio * 100).toFixed(1)} %  tolerance ${(pl.tol * 100).toFixed(0)} %  (${pl.paths} routes)  par ${lv.par} -> ${rec.suggestPar}  limit ${lv.limit} -> ${rec.suggestLimit}  [${t1 - t0} + ${t2 - t1} ms]`);
+  console.log(`L${String(n + 1).padStart(2, '0')}  exact ${rec.exact ?? '   -'}  plans ${rec.plans ?? '   -'}  clean ${pl.clean}/${pl.total} = ${(rec.ratio * 100).toFixed(1)} %  tolerance ${(pl.tol * 100).toFixed(0)} % (silent ${(pl.tol0 * 100).toFixed(0)} %)  (${pl.paths} routes)  par ${lv.par} -> ${rec.suggestPar}  limit ${lv.limit} -> ${rec.suggestLimit}  [${t1 - t0} + ${t2 - t1} ms]`);
   if (pl.plan.length) console.log('     ' + rec.plan);
 }
 console.log(JSON.stringify(summary));

@@ -48,7 +48,7 @@ const SWEEP = 0.85;
 export const RANGE = 4.5; // tiles he can see down a clear line
 export const HALF_ANGLE = 0.55; // half the cone, in radians: a 63-degree wedge, like the radar's
 const NEAR = 1.5; // closer than this he notices you whatever way he faces
-export const HEARING = 8; // tiles a noise carries, walls or not — sound goes round corners
+export const HEARING = 6; // tiles a noise carries, walls or not — sound goes round corners
 
 export interface Hunter {
   x: number; z: number; yaw: number; leg: number;
