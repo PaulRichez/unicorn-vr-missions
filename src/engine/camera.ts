@@ -54,10 +54,10 @@ function turnToward(from: number, to: number, max: number) {
 
 /** Movement reads relative to the screen: up on the keys is away from the camera. */
 export function update(dt: number) {
-  // The third code of each is the finger: a drag on a touchscreen sets them (game.ts).
-  const k = (a: string, b: string, c: string) => (keys.has(a) || keys.has(b) || keys.has(c) ? 1 : 0);
-  const f = k('KeyW', 'ArrowUp', 'TU') - k('KeyS', 'ArrowDown', 'TD');
-  const s = k('KeyD', 'ArrowRight', 'TR') - k('KeyA', 'ArrowLeft', 'TL');
+  // The last two codes of each are the finger: a drag on the screen (T) or the pad (B).
+  const k = (...c: string[]) => (c.some((x) => keys.has(x)) ? 1 : 0);
+  const f = k('KeyW', 'ArrowUp', 'TU', 'BU') - k('KeyS', 'ArrowDown', 'TD', 'BD');
+  const s = k('KeyD', 'ArrowRight', 'TR', 'BR') - k('KeyA', 'ArrowLeft', 'TL', 'BL');
 
   player.speed = 0;
   if (!f && !s) return;

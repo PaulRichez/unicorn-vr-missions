@@ -93,7 +93,10 @@ ui.innerHTML =
   '.c:before{content:"▶";position:absolute;right:100%;margin-right:.5em}' +
   // A dark backing behind the border, so a boxed line stays readable over a pink floor
   // or a white cloud instead of dissolving into whatever the camera happens to be over.
-  '.x{border:1px solid #fbd9;background:#2a073066;padding:.1em .7em;display:inline-block}' +
+  '.x{border:1px solid #fbd9;background:#2a073066;padding:.1em .7em;display:inline-block;pointer-events:auto;touch-action:none}' +
+  '.j{position:fixed;bottom:18px;display:grid;grid-template:repeat(3,58px)/repeat(3,58px);gap:5px;left:18px}' +
+  '.j b,.z{display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid #fbd9;background:#2a073088;border-radius:.4em;pointer-events:auto;touch-action:none}' +
+  '.z{position:fixed;right:22px;bottom:30px;width:96px;height:96px;border-radius:50%;font-size:40px}' +
   '.o{-webkit-text-stroke:1px #ff4fa0;color:transparent;font-style:italic}' +
   '.s{font-size:16px;letter-spacing:.14em;line-height:1.6}.w{letter-spacing:.6em}.d{opacity:.35}.r{color:#ff3b6b}' +
   // A table is a left-aligned block that still sits in the middle of the screen: the
@@ -108,12 +111,38 @@ const top = document.createElement('div');
 const mid = document.createElement('div');
 const low = document.createElement('div');
 const pct = document.createElement('div');
+/** The touch pad and the fart button; only shown on a touchscreen, only in a mission. */
+const pad = document.createElement('div');
+pad.className = 'j';
+pad.innerHTML = '<b data-h=BU style="grid-area:1/2">\u25B2</b><b data-h=BL style="grid-area:2/1">\u25C0</b><b data-h=BR style="grid-area:2/3">\u25B6</b><b data-h=BD style="grid-area:3/2">\u25BC</b>';
+const fart = document.createElement('b');
+fart.className = 'z';
+fart.textContent = '\u{1F4A8}';
 top.style.cssText = 'text-align:left;white-space:pre;opacity:.9';
 mid.style.cssText = 'font-size:34px;letter-spacing:.24em;white-space:pre;line-height:1.35';
 low.style.cssText = 'opacity:.8;white-space:pre';
 pct.style.cssText = 'position:absolute;top:18px;right:22px';
-ui.append(top, mid, low, pct);
+ui.append(top, mid, low, pct, pad, fart);
 document.body.appendChild(ui);
+// Held keys from the pad (data-h), single presses from any box (data-p). Each button gets
+// its own pointer, so a thumb on the pad and a finger on the button work together.
+ui.addEventListener('pointerdown', (e) => {
+  const el = (e.target as HTMLElement).closest('[data-h],[data-p]') as HTMLElement | null;
+  if (!el) return;
+  e.preventDefault();
+  if (el.dataset.p) pressed.add(el.dataset.p);
+  else {
+    // Held for walking; a press too, so up and down also move the cursor in the list.
+    keys.add(el.dataset.h!);
+    pressed.add(el.dataset.h === 'BU' ? 'ArrowUp' : el.dataset.h === 'BD' ? 'ArrowDown' : '');
+    el.setPointerCapture(e.pointerId);
+  }
+});
+for (const ev of ['pointerup', 'pointercancel']) ui.addEventListener(ev, (e) => {
+  const el = (e.target as HTMLElement).closest('[data-h]') as HTMLElement | null;
+  if (el) keys.delete(el.dataset.h!);
+});
+fart.dataset.p = 'Space';
 
 /** Writes only on change: rewriting the same HTML every frame would restart its animations. */
 const set = (el: HTMLElement, s: string) => { if (el.dataset.h !== s) el.innerHTML = el.dataset.h = s; };
@@ -320,10 +349,19 @@ function hud() {
   if (ui.dataset.g !== String(grey)) ui.style.filter = 'saturate(' + (1 - (ui.dataset.g = String(grey), grey)) + ')';
   const n = two(level + 1);
   const p = cleared();
-  set(pct, phase === 'boot' ? '' : '<span class=x>' + (isMuted() ? '\u{1F507}' : '\u{1F50A}') + '</span>');
+  set(pct, phase === 'boot' ? '' : '<span class=x data-p=KeyM>' + (isMuted() ? '\u{1F507}' : '\u{1F50A}') + '</span>');
+  // The two-line box of every VR mission; TIME turns red and pulses in the last ten seconds.
+  const box =
+    '<div class="x t" data-p=' + (fails > 2 ? 'Enter' : 'KeyR') + '><span style="opacity:.6">\u21BB  LIMIT  ' + fmt(limit) +
+    '</span>\n<span class="' + (limit - clock < 10 && (t * 4) % 1 < 0.5 ? 'r' : '') + '">   TIME   ' + fmt(clock) + '</span></div>';
+  const inPlay = phase === 'play' && !(caughtT > 0 && caughtT < 0.9);
   set(top, phase === 'boot' || phase === 'title' || phase === 'menu' || phase === 'end' ? ''
-    : '<span class=x>\u2630  MISSION ' + n + '</span>' +
-      (phase === 'play' ? (level < 2 ? (COARSE ? '\nDRAG · MOVE   TAP · FART' : '\nSPACE · FART   ESC · MENU') : '') + (fails > 2 ? (COARSE ? '\nTAP THE CLOCK · SKIP' : '\nENTER · SKIP') : '') : ''));
+    : '<span class=x data-p=Escape>\u2630  MISSION ' + n + '</span>' +
+      (phase === 'play' ? (level < 2 && !COARSE ? '\nSPACE · FART   ESC · MENU' : '') + (fails > 2 ? (COARSE ? '\nTHE CLOCK · SKIP' : '\nENTER · SKIP') : '') : '') +
+      (COARSE && inPlay ? '\n' + box : ''));
+  pad.hidden = fart.hidden = !COARSE || phase === 'boot';
+  // The button fills back up while the next fart is not ready yet.
+  if (COARSE) fart.style.background = gasCool > 0 ? 'linear-gradient(0deg,#ff3fb0 ' + (100 - (gasCool / 3) * 100) + '%,#2a073088 0)' : '';
   let m = '';
   let l = '';
 
@@ -337,10 +375,8 @@ function hud() {
     m =
       '<div class=f><div class=q>TACTICAL FLATULENCE ACTION</div><span class=w>' + NAME + '<br>MISSIONS</span>' +
       '<div class=q>NO ONE TAKES A UNICORN BY FORCE.<br>ONLY BY PATIENCE AND TRICKERY.</div>' +
-      '<div class="s r p">' + (COARSE ? 'TAP TO START' : 'PRESS SPACE') + '</div></div>';
-    l = COARSE
-      ? 'DRAG · MOVE      TAP · FART      TOP CORNERS · MENU / MUTE'
-      : 'ARROWS / WASD · MOVE      SPACE · FART      M · MUTE';
+      '<div class="s r p">' + (COARSE ? 'TAP \u{1F4A8} TO START' : 'PRESS SPACE') + '</div></div>';
+    l = COARSE ? '' : 'ARROWS / WASD · MOVE      SPACE · FART      M · MUTE'; // the pad speaks for itself
   } else if (phase === 'menu') {
     // The original's list: vertical, looping, cursor held at the centre, a full bar on
     // the current line, [EXIT] at the bottom whether or not it has anything to do.
@@ -352,21 +388,15 @@ function hud() {
       m += '<div class="' + (k ? '' : 'b c ') + (i > p ? 'd' : '') + '">MISSION ' + two(i + 1) + (b ? '   ' + fmt(b) : '') + '</div>';
     }
     m += '<br><span class=x>EXIT</span></div></div>';
-    l = (cursor <= p ? 'TARGET ' + fmt(LEVELS[cursor].par) : 'LOCKED') + '\n\nUP / DOWN · CHOOSE      SPACE · START      ESC · EXIT';
+    l = (cursor <= p ? 'TARGET ' + fmt(LEVELS[cursor].par) : 'LOCKED') + (COARSE ? '' : '\n\nUP / DOWN · CHOOSE      SPACE · START      ESC · EXIT');
   } else if (phase === 'intro') {
     m = phaseT > 0.5
       ? line('MISSION ' + n + '<div class=s><br>' + brief + (gems.length ? '<br>TAKE THE KEY. THE GOAL WILL OPEN' : '') + '</div>', 0)
       : line('START', 0);
-    l = 'TARGET ' + fmt(par) + '      LIMIT ' + fmt(limit) + '      ESC · MENU';
+    l = 'TARGET ' + fmt(par) + '      LIMIT ' + fmt(limit) + (COARSE ? '' : '      ESC · MENU');
   } else if (phase === 'play') {
     m = caughtT > 0 ? '<span class="o k">' + (timeUp ? 'TIME UP<br>' : '') + 'MISSION FAILED</span>' : '';
-    // The two-line box of every VR mission; TIME turns red and pulses in the last ten seconds.
-    l =
-      caughtT > 0 && caughtT < 0.9
-        ? 'TRY AGAIN'
-        : '<div class="x t"><span style="opacity:.6">\u21BB  LIMIT  ' + fmt(limit) +
-          '</span>\n<span class="' + (limit - clock < 10 && (t * 4) % 1 < 0.5 ? 'r' : '') +
-          '">   TIME   ' + fmt(clock) + '</span></div>';
+    l = caughtT > 0 && caughtT < 0.9 ? 'TRY AGAIN' : COARSE ? '' : box;
   } else if (phase === 'won') {
     // The original's table of three times, filled in by the machine before you ran.
     m =
