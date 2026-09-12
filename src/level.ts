@@ -3,7 +3,7 @@
 // the edge of the platform is the boundary, which is what lets a level have a
 // silhouette instead of always being a rectangle.
 //
-//   U start · E exit · c colour to take
+//   U start · E exit · c a key: the goal only appears once every key is taken
 //   , flowers that bloom underfoot with a pop — a noise you did not choose
 //   ~ enchanted meadow that keeps a glitter of every step for a while — the snowfield
 //   - a tunnel under the hedge: the unicorn slips through, a hunter neither enters nor
@@ -79,16 +79,16 @@ export const LEVELS: Level[] = [
       'U......',
     ],
     routes: [[[0, 3], [6, 3], [6, 1], [0, 1]], [[6, 5], [0, 5], [0, 7], [6, 7]]],
-    par: 17,
-    limit: 45,
+    par: 23,
+    limit: 60,
     brief: 'TWO ROUNDS. ONE GAP',
   },
   // 4 — UNDER THE HEDGE
   {
     map: [
-      'U......c.',
+      'U........',
       '.##.#.##.',
-      '....#....',
+      '.c..#....',
       '.##.#.##.',
       '....#....',
       '.##.-.##.',
@@ -96,7 +96,7 @@ export const LEVELS: Level[] = [
       '....#...E',
     ],
     routes: [[[3, 0], [5, 0]], [[8, 1], [8, 6]], [[0, 6], [3, 6]]],
-    par: 17,
+    par: 18,
     limit: 45,
     brief: 'SLIP UNDER. HE CANNOT FOLLOW',
   },
@@ -107,15 +107,15 @@ export const LEVELS: Level[] = [
       '.####.####.',
       '.#.......#.',
       '.#.#####.#.',
-      '.#c#####.#.',
+      '.#.#####.#c',
       '.#.#####.#.',
       '.#.......#.',
       '.####.####.',
       '.....E.....',
     ],
     routes: [[[2, 2], [8, 2], [8, 6], [2, 6]], [[10, 1], [10, 8], [1, 8], [10, 8]]],
-    par: 15,
-    limit: 40,
+    par: 31,
+    limit: 80,
     brief: 'WALLS HIDE YOU. THE EDGE DOES NOT',
   },
   // 6 — THE FLOWERS TELL
@@ -125,15 +125,15 @@ export const LEVELS: Level[] = [
       ' .......',
       '..,,,,,..',
       '..,#,#,..',
-      '..,,c,,..',
+      '..,,,,,..',
       '..,#,#,..',
       '..,,,,,..',
-      ' .......',
+      ' c......',
       '  ..U..',
     ],
     routes: [[[1, 1], [7, 1]], [[6, 6], [2, 6]]],
-    par: 26,
-    limit: 70,
+    par: 43,
+    limit: 110,
     brief: 'THE FLOWERS TELL ON YOU',
   },
   // 7 — THE SLEEPER
@@ -143,13 +143,13 @@ export const LEVELS: Level[] = [
       '..,,.,,..',
       '...#.#...',
       'U.#####.E',
-      '...#.#...',
+      '...#.#.##',
       '.........',
       '....c....',
     ],
     routes: [[[4, 1]], [[1, 5], [7, 5]]],
-    par: 13,
-    limit: 35,
+    par: 27,
+    limit: 70,
     brief: 'HE SLEEPS. TREAD ON NO FLOWER',
   },
   // 8 — THE GLITTER BRIDGE
@@ -218,8 +218,8 @@ export const LEVELS: Level[] = [
       'U......',
     ],
     routes: [[[0, 3], [6, 3]], [[6, 5], [0, 5]], [[3, 7], [3, 1]]],
-    par: 17,
-    limit: 45,
+    par: 23,
+    limit: 60,
     brief: 'SAME FLOOR. THREE WATCHES',
   },
   // 12 — EVERYTHING YOU KNOW

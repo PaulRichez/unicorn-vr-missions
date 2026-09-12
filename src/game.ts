@@ -11,7 +11,7 @@ import { mat, perspective, view, multiply, place, partAt, type M4 } from './engi
 import { cam, player, update as moveRig, follow } from './engine/camera';
 import { sfx, toggleMute, isMuted } from './engine/audio';
 import { pressed, keys, pointer } from './engine/input';
-import { puff, dome, panel, ring, mark, arc, prismSolid, join, shift } from './mesh';
+import { puff, dome, panel, ring, mark, arc, prismSolid, join, shift, keyShape, note } from './mesh';
 import { buildParts, PALETTE, SCALE, LEGS, HOOVES, HORN } from './unicorn';
 import * as Hunter from './hunter';
 import {
@@ -63,6 +63,8 @@ const shadowMesh = mesh(ring(0, 1));
 const bang = mesh(mark(false));
 const huh = mesh(mark(true));
 const gemMesh = mesh(puff(0.3));
+const keyMesh = mesh(keyShape());
+const noteMesh = mesh(note());
 const skyMesh = mesh(dome(95)); // wide enough that the title's rainbow never crosses it
 /**
  * The seven bands of a rainbow, each its own mesh with its own radii, so that no band
@@ -184,6 +186,9 @@ let ringZ = 0;
 let ringR = 0;
 /** Seconds of the "!" freeze left after a failure, before the reset lands. */
 let caughtT = 0;
+/** Whether the goal has appeared: it does once every colour on the platform is taken, the
+ *  way the original's goal appeared once every target was down. No colour, open at once. */
+let opened = false;
 /** Whether that failure was the clock rather than a hunter — no colour is lost then. */
 let timeUp = false;
 /** Failures on this mission so far; after three, it may be skipped. */
@@ -229,6 +234,7 @@ function reset(caught: boolean) {
   ringAge = -1;
   clock = 0;
   lastI = -1;
+  opened = !gems.length;
   // Every attempt at a level plays out the same way — a patrol you can learn is the
   // whole point of a patrol — so the colours taken this attempt go back on the floor.
   for (const g of gems) if (g.taken) { g.taken = false; bands--; }
@@ -259,6 +265,15 @@ function begin(n: number) {
 }
 reset(false);
 sfx([0.5, , 220, 0.05, 0.25, 0.35, 1, 1.3, , , 160, 0.1, 0.12]); // the machine wakes
+
+/** The menu builds the platform under the cursor behind the list, so you see what you pick. */
+function preview(n: number) {
+  cursor = level = n;
+  scenery = load(n);
+  reset(false);
+  bootT = 0;
+  downT = -1;
+}
 
 /** A new run: the colour comes back, the horn is bare again. Best times are kept. */
 function restart() {
@@ -337,7 +352,9 @@ function hud() {
     m += '<br><span class=x>EXIT</span></div></div>';
     l = (cursor <= p ? 'TARGET ' + fmt(LEVELS[cursor].par) : 'LOCKED') + '\n\nUP / DOWN · CHOOSE      SPACE · START      ESC · EXIT';
   } else if (phase === 'intro') {
-    m = phaseT > 0.5 ? line('MISSION ' + n + '<div class=s><br>' + brief + '</div>', 0) : line('START', 0);
+    m = phaseT > 0.5
+      ? line('MISSION ' + n + '<div class=s><br>' + brief + (gems.length ? '<br>TAKE THE KEY. THE GOAL WILL OPEN' : '') + '</div>', 0)
+      : line('START', 0);
     l = 'TARGET ' + fmt(par) + '      LIMIT ' + fmt(limit) + '      ESC · MENU';
   } else if (phase === 'play') {
     m = caughtT > 0 ? '<span class="o k">' + (timeUp ? 'TIME UP<br>' : '') + 'MISSION FAILED</span>' : '';
@@ -362,9 +379,9 @@ function hud() {
         ? ''
         : line('ALL MISSIONS COMPLETE', 0) + '<div class="s t x">' + line('TOTAL         ' + fmt(runT), 1) +
           line('COLOUR KEPT   ' + Math.round((1 - grey) * 100) + ' %', 2) +
-          line('BANDS         ' + bands + ' / ' + ALL_GEMS, 3) + '</div>' +
+          line('KEYS          ' + bands + ' / ' + ALL_GEMS, 3) + '</div>' +
           line('<div class=s><br>' +
-            (!grey && full ? 'PERFECT RUN' : !grey ? 'NO ONE EVER SAW YOU' : grey === 1 ? 'THE COLOUR IS GONE.<br>LIFE IS NOT A FAIRY TALE.' : full ? 'THE HORN HAS EVERY BAND' : '') +
+            (!grey && full ? 'PERFECT RUN' : !grey ? 'NO ONE EVER SAW YOU' : grey === 1 ? 'THE COLOUR IS GONE.<br>LIFE IS NOT A FAIRY TALE.' : full ? 'EVERY KEY TAKEN' : '') +
             '</div>', 4);
     l = phaseT > 3 ? 'SPACE · AGAIN' : '';
   }
@@ -392,10 +409,10 @@ export function update(dt: number) {
   if (phase === 'boot') {
     if (bootT > 3.6 || go) phase = 'title';
   } else if (phase === 'title') {
-    if (go) { phase = 'menu'; cursor = Math.min(cleared(), N - 1); }
+    if (go) { phase = 'menu'; preview(Math.min(cleared(), N - 1)); }
   } else if (phase === 'menu') {
-    if (pressed.has('ArrowUp') || pressed.has('KeyW')) cursor = (cursor + N - 1) % N;
-    if (pressed.has('ArrowDown') || pressed.has('KeyS')) cursor = (cursor + 1) % N;
+    if (pressed.has('ArrowUp') || pressed.has('KeyW')) preview((cursor + N - 1) % N);
+    if (pressed.has('ArrowDown') || pressed.has('KeyS')) preview((cursor + 1) % N);
     if (pressed.has('Escape')) phase = 'title';
     if (go && cursor <= cleared()) begin(cursor);
     else if (go) sfx([0.6, , 120, 0.02, 0.05, 0.1, 2, 0.3]);
@@ -539,10 +556,16 @@ function play(dt: number) {
       burst(wx(g.i), wz(g.j), 0.6, g.hue);
       flash = 1;
       sfx([, , 380 + bands * 80, , 0.03, 0.16, 1, 1.6, , , 220, 0.04, , , , , 0.04]);
+      if (gems.every((o) => o.taken)) {
+        // The last colour: the goal appears over the exit, in a shower of its own.
+        opened = true;
+        burst(wx(exit.i), wz(exit.j), 1.2);
+        sfx([0.8, , 660, 0.02, 0.15, 0.4, 1, 1.5, , , 330, 0.08, 0.1]);
+      }
     }
   }
 
-  if (pi === exit.i && pj === exit.j) win();
+  if (opened && pi === exit.i && pj === exit.j) win();
 }
 
 function win() {
@@ -690,17 +713,38 @@ export function draw() {
     drawMesh(p.mesh, m, p.rgb[0], p.rgb[1], p.rgb[2]);
   };
   scenery.forEach(lifted);
+  // Nothing stands on a platform that is not there yet: what lives on the floor waits for
+  // the last tile, and goes when the first one sinks.
+  const built = bootT >= 1.9 && downT < 0;
+  if (!built) {
+    setBlend(true);
+    for (const p of roofs) lifted(p, n - 1);
+    setBlend(false);
+    if (phase === 'title' || phase === 'menu') arch(0, wz(0) - 4, -0.3, 0.42 + COLS * 0.05, false);
+    return;
+  }
 
   for (const g of gems) {
     if (g.taken) continue;
     const [r, gg, b] = hsv(g.hue, 0.95, 1);
-    place(tmpM, wx(g.i), 0.55 + Math.sin(t * 2.2) * 0.12, wz(g.j), 0, t);
-    drawMesh(gemMesh, tmpM, r, gg, b);
+    place(tmpM, wx(g.i), 0.5 + Math.sin(t * 2.2) * 0.12, wz(g.j), 0, t, 1.1);
+    drawMesh(keyMesh, tmpM, r, gg, b);
   }
-  // The goal turns over the exit, iridescent from red at its foot to violet at its tip.
-  place(tmpM, wx(exit.i), 1 + Math.sin(t * 2) * 0.15, wz(exit.j), 0, t * 1.4, 0.9);
-  setBands(7, 1.6);
-  drawMesh(goalMesh, tmpM, 1, 1, 1, 1);
+  // A note hangs over every flower tile: what you will hear if you step there.
+  for (let j = 0; j < ROWS; j++) {
+    for (let i = 0; i < COLS; i++) {
+      if (at(i, j) !== ',') continue;
+      place(tmpM, wx(i), 1.5 + Math.sin(t * 3 + i + j) * 0.1, wz(j), cam.pitch, 0, 0.9);
+      drawMesh(noteMesh, tmpM, 1, 0.5, 0.75);
+    }
+  }
+  // The goal turns over the exit, iridescent from red at its foot to violet at its tip —
+  // once it is there at all.
+  if (opened) {
+    place(tmpM, wx(exit.i), 1 + Math.sin(t * 2) * 0.15, wz(exit.j), 0, t * 1.4, 0.9);
+    setBands(7, 1.6);
+    drawMesh(goalMesh, tmpM, 1, 1, 1, 1);
+  }
 
   setBlend(true);
   // What they can see, drawn flat on the floor with a hard edge at every tile border.

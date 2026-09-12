@@ -22,6 +22,12 @@ const STEP = Math.round(TILE / PSPEED / DT); // frames to cross one tile: 50
 const DIAG = Math.round(STEP * Math.SQRT2); // frames to cross a tile diagonally
 
 const key = (i: number, j: number) => j * COLS + i;
+/** The colours on the platform: the goal opens only once every one of them is taken. */
+const gemTiles = () => {
+  const out: number[] = [];
+  for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) if (at(i, j) === 'c') out.push(key(i, j));
+  return out;
+};
 const noisy = (i: number, j: number) => at(i, j) === ',' || at(i, j) === '~';
 
 // ---------------------------------------------------------------------------- exact ---
@@ -37,20 +43,24 @@ function timeline(K: number): Uint8Array[] {
   return out;
 }
 
-/** Frames to the exit for a silent player, or -1. */
+/** Frames to the exit for a silent player who takes every colour on the way, or -1. */
 function exact(K: number): number {
   const seen = timeline(K);
   const n = COLS * ROWS;
+  const gems = gemTiles();
+  const full = (1 << gems.length) - 1;
+  // A state is a tile plus which colours are taken so far, packed as tile + mask * n.
   const buckets: Set<number>[] = Array.from({ length: K + 1 }, () => new Set());
-  const visited = new Uint8Array((K + 1) * n);
+  const visited = new Uint8Array((K + 1) * n * (full + 1));
   buckets[0].add(key(spawn.i, spawn.j));
   const ex = key(exit.i, exit.j);
   for (let k = 0; k <= K; k++) {
-    for (const tile of buckets[k]) {
-      if (visited[k * n + tile]) continue;
-      visited[k * n + tile] = 1;
+    for (const state of buckets[k]) {
+      if (visited[k * n * (full + 1) + state]) continue;
+      visited[k * n * (full + 1) + state] = 1;
+      const tile = state % n, mask = (state / n) | 0;
       const i = tile % COLS, j = (tile / COLS) | 0;
-      if (k + 1 <= K && !seen[k + 1][tile]) buckets[k + 1].add(tile);
+      if (k + 1 <= K && !seen[k + 1][tile]) buckets[k + 1].add(state);
       // Eight ways, like the real player, who moves diagonally at full speed; a diagonal
       // needs both tiles it cuts between to be free, or the body square would catch.
       for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
@@ -64,8 +74,10 @@ function exact(K: number): number {
         let ok = true;
         for (let s = 1; s <= last && ok; s++) ok = !seen[k + s][s < len / 2 ? tile : nt];
         if (!ok) continue;
-        if (nt === ex) return k + last;
-        buckets[k + len].add(nt);
+        const g = gems.indexOf(nt);
+        const nm = g < 0 ? mask : mask | (1 << g);
+        if (nt === ex) { if (nm === full) return k + last; continue; }
+        buckets[k + len].add(nt + nm * n);
       }
     }
   }
@@ -82,6 +94,8 @@ function run(plan: Act[], K: number): { ok: boolean; t: number } {
   let px = wx(spawn.i), pz = wz(spawn.j);
   let lastI = -1, lastJ = -1;
   const marks: { i: number; j: number; age: number }[] = [];
+  const gems = gemTiles();
+  const taken = new Set<number>();
   let a = 0, wait = 0;
   for (let k = 1; k <= K; k++) {
     if (wait > 0) wait -= DT;
@@ -102,6 +116,7 @@ function run(plan: Act[], K: number): { ok: boolean; t: number } {
       const c = at(pi, pj);
       if (c === ',') Hunter.hear(px, pz, 4);
       if (c === '~') { marks.push({ i: pi, j: pj, age: 0 }); if (marks.length > 10) marks.shift(); }
+      if (c === 'c') taken.add(key(pi, pj));
     }
     for (const m of marks) m.age += DT;
     while (marks.length && marks[0].age > 6) marks.shift();
@@ -109,21 +124,17 @@ function run(plan: Act[], K: number): { ok: boolean; t: number } {
     Hunter.look();
     Hunter.track(marks);
     if (Hunter.sees(pi, pj)) return { ok: false, t: k * DT };
-    if (pi === exit.i && pj === exit.j) return { ok: true, t: k * DT };
+    if (taken.size === gems.length && pi === exit.i && pj === exit.j) return { ok: true, t: k * DT };
   }
   return { ok: false, t: K * DT };
 }
 
-/**
- * Candidate routes: simple paths from U to E, never straying far from the shortest way.
- * With `quiet` the flower and meadow tiles count as walls, so the long way round a noisy
- * shortcut is sampled too — it is often the only way that works.
- */
-function routes(maxExtra: number, cap: number, quiet = false): [number, number][][] {
+/** Simple paths between two tiles, never straying far from the shortest way (see routes). */
+function legs(si: number, sj: number, gi: number, gj: number, maxExtra: number, cap: number, quiet: boolean): [number, number][][] {
   const solid = (i: number, j: number) => isSolid(i, j) || (quiet && noisy(i, j));
   const dist = new Int32Array(COLS * ROWS).fill(-1);
-  const q: [number, number][] = [[exit.i, exit.j]];
-  dist[key(exit.i, exit.j)] = 0;
+  const q: [number, number][] = [[gi, gj]];
+  dist[key(gi, gj)] = 0;
   while (q.length) {
     const [i, j] = q.shift()!;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -133,15 +144,15 @@ function routes(maxExtra: number, cap: number, quiet = false): [number, number][
       q.push([ni, nj]);
     }
   }
-  const shortest = dist[key(spawn.i, spawn.j)];
+  const shortest = dist[key(si, sj)];
   if (shortest < 0) return [];
   const out: [number, number][][] = [];
-  const path: [number, number][] = [[spawn.i, spawn.j]];
+  const path: [number, number][] = [[si, sj]];
   const on = new Uint8Array(COLS * ROWS);
-  on[key(spawn.i, spawn.j)] = 1;
+  on[key(si, sj)] = 1;
   const dfs = (i: number, j: number) => {
     if (out.length >= cap) return;
-    if (i === exit.i && j === exit.j) { out.push(path.slice()); return; }
+    if (i === gi && j === gj) { out.push(path.slice()); return; }
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const ni = i + di, nj = j + dj;
       const k = key(ni, nj);
@@ -152,7 +163,31 @@ function routes(maxExtra: number, cap: number, quiet = false): [number, number][
       path.pop(); on[k] = 0;
     }
   };
-  dfs(spawn.i, spawn.j);
+  dfs(si, sj);
+  return out;
+}
+
+/**
+ * Candidate routes: simple paths from U to E through every colour (in each order when
+ * there are two), never straying far from the shortest way. With `quiet` the flower and
+ * meadow tiles count as walls, so the long way round a noisy shortcut is sampled too — it
+ * is often the only way that works.
+ */
+function routes(maxExtra: number, cap: number, quiet = false): [number, number][][] {
+  const gems = gemTiles().map((k) => [k % COLS, (k / COLS) | 0] as [number, number]);
+  const orders = gems.length < 2 ? [gems] : [gems, [gems[1], gems[0]]];
+  const out: [number, number][][] = [];
+  for (const order of orders) {
+    const stops: [number, number][] = [[spawn.i, spawn.j], ...order, [exit.i, exit.j]];
+    let partial: [number, number][][] = [[]];
+    for (let s = 0; s + 1 < stops.length; s++) {
+      const seg = legs(stops[s][0], stops[s][1], stops[s + 1][0], stops[s + 1][1], maxExtra, Math.max(6, (cap / stops.length) | 0), quiet);
+      const next: [number, number][][] = [];
+      for (const head of partial) for (const leg of seg) next.push(head.length ? [...head, ...leg.slice(1)] : leg);
+      partial = next.slice(0, cap);
+    }
+    out.push(...partial);
+  }
   return out;
 }
 
