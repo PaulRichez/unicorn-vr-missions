@@ -9,13 +9,21 @@ export let H = 0;
 
 /** Backing-store density, capped: 3x on mobile costs a lot for very little. */
 export let DPR = 1;
+/**
+ * A touchscreen held upright shows the game turned on its side: the page is rotated a
+ * quarter turn by CSS (body.r) and the game keeps thinking in landscape. Nothing to ask of
+ * the player — turning the phone simply lets the browser take over the rotation.
+ */
+export let ROT = false;
 
 const listeners: (() => void)[] = [];
 
 function apply() {
   DPR = Math.min(devicePixelRatio || 1, 2);
-  W = innerWidth;
-  H = innerHeight;
+  ROT = matchMedia('(hover:none) and (pointer:coarse)').matches && innerHeight > innerWidth;
+  document.body.classList.toggle('r', ROT);
+  W = ROT ? innerHeight : innerWidth;
+  H = ROT ? innerWidth : innerHeight;
   canvas.width = (W * DPR) | 0;
   canvas.height = (H * DPR) | 0;
   for (const f of listeners) f();

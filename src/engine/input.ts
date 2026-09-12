@@ -1,7 +1,7 @@
 // Unified keyboard and pointer input. Pointer Events cover mouse, touch and pen with a
 // single set of handlers, so there is nothing mobile-specific to write.
 
-import { canvas } from './view';
+import { canvas, ROT } from './view';
 
 /** Physical codes currently held down (KeyW, ArrowLeft, Space...). */
 export const keys = new Set<string>();
@@ -30,6 +30,9 @@ export const pressed = new Set<string>();
 let activeId: number | null = null;
 
 const move = (e: PointerEvent) => {
+  // Undo the quarter turn of a phone held upright (see view.ts): what the page has for
+  // rotate(90deg) translateY(-100%) is X = width - y, Y = x.
+  if (ROT) { pointer.x = e.clientY; pointer.y = innerWidth - e.clientX; return; }
   const r = canvas.getBoundingClientRect();
   pointer.x = e.clientX - r.left;
   pointer.y = e.clientY - r.top;

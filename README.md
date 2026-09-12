@@ -16,8 +16,8 @@ colour — the ending is a rainbow drawn through whatever colour you have left.
   the menu, Enter skips a mission after three failures. On a touchscreen: a pad to move (it
   also steers the mission list), a big button to fart or confirm that fills up while the
   next fart recharges, and the mission box, the sound box and the clock are buttons (menu,
-  mute, restart). Dragging anywhere on the floor moves too. The camera never leaves the
-  platform, so portrait works
+  mute, restart). Dragging anywhere on the floor moves too. A phone held upright gets the
+  page turned a quarter turn: the game is always landscape, nothing to rotate
 
 ## How it plays
 
