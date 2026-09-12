@@ -303,7 +303,7 @@ function hud() {
   ui.style.filter = 'saturate(' + (1 - grey) + ')';
   const n = two(level + 1);
   const p = cleared();
-  set(pct, phase === 'boot' ? '' : '<span class=x>' + (isMuted() ? '\u{1F507}' : '\u{1F50A}') + '  ' + Math.round((p / N) * 100) + ' %</span>');
+  set(pct, phase === 'boot' ? '' : '<span class=x>' + (isMuted() ? '\u{1F507}' : '\u{1F50A}') + '</span>');
   set(top, phase === 'boot' || phase === 'title' || phase === 'menu' || phase === 'end' ? ''
     : '<span class=x>\u2630  MISSION ' + n + '</span>' +
       (phase === 'play' ? (level < 2 ? (COARSE ? '\nDRAG · MOVE   TAP · FART' : '\nSPACE · FART   ESC · MENU') : '') + (fails > 2 ? (COARSE ? '\nTAP THE CLOCK · SKIP' : '\nENTER · SKIP') : '') : ''));
