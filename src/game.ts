@@ -727,11 +727,10 @@ export function draw() {
   for (const g of gems) {
     if (g.taken) continue;
     const [r, gg, b] = hsv(g.hue, 0.95, 1);
-    // Flat and one-sided, so it is drawn twice, back to back: a face for every angle.
-    for (let f = 0; f < 2; f++) {
-      place(tmpM, wx(g.i), 0.5 + Math.sin(t * 2.2) * 0.12, wz(g.j), 0.5, t + f * Math.PI, 1.1);
-      drawMesh(keyMesh, tmpM, r, gg, b);
-    }
+    // Lying flat and turning in the plane of the floor: from a camera overhead, a flat
+    // shape stands out only when it faces up.
+    place(tmpM, wx(g.i), 0.35 + Math.sin(t * 2.2) * 0.1, wz(g.j), -Math.PI / 2, t * 0.8, 1.7);
+    drawMesh(keyMesh, tmpM, r, gg, b);
   }
   // A note hangs over every flower tile: what you will hear if you step there.
   for (let j = 0; j < ROWS; j++) {

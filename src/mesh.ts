@@ -281,10 +281,10 @@ export function mark(question: boolean): Float32Array {
 /** A key, upright, facing +Z: a ring for the bow, a shaft, two teeth. About 1.1 tall. */
 export function keyShape(): Float32Array {
   return join(
-    shift(ring(0.16, 0.3), 0, 0.8, 0),
-    shift(panel(0.12, 0.7), 0, 0.3, 0),
-    shift(panel(0.16, 0.1), 0.14, 0.08, 0),
-    shift(panel(0.16, 0.1), 0.14, 0.26, 0),
+    shift(ring(0.2, 0.42), 0, 0.85, 0),
+    shift(panel(0.2, 0.8), 0, 0.3, 0),
+    shift(panel(0.28, 0.14), 0.2, 0.08, 0),
+    shift(panel(0.28, 0.14), 0.2, 0.3, 0),
   );
 }
 
