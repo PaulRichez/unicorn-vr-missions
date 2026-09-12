@@ -262,7 +262,7 @@ function begin(n: number) {
   sfx([0.7, , 420, 0.01, 0.08, 0.2, 1, 1.4, , , 180, 0.06]);
 }
 reset(false);
-sfx([0.5, , 220, 0.05, 0.25, 0.35, 1, 1.3, , , 160, 0.1, 0.12]); // the machine wakes
+// No sound before the first key: a browser refuses an AudioContext made without a gesture.
 
 /** The menu builds the platform under the cursor behind the list, so you see what you pick. */
 function preview(n: number) {
@@ -313,7 +313,9 @@ export function resize() {
 
 function hud() {
   // The one line that carries the game: the interface loses its colour with the world.
-  ui.style.filter = 'saturate(' + (1 - grey) + ')';
+  // Written only when it changes: a filter on a full-screen layer makes the browser
+  // re-rasterise every glyph and its shadow, and once a frame that is a stutter.
+  if (ui.dataset.g !== String(grey)) ui.style.filter = 'saturate(' + (1 - (ui.dataset.g = String(grey), grey)) + ')';
   const n = two(level + 1);
   const p = cleared();
   set(pct, phase === 'boot' ? '' : '<span class=x>' + (isMuted() ? '\u{1F507}' : '\u{1F50A}') + '</span>');
