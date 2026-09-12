@@ -831,6 +831,18 @@ function scene(ex: number, ez: number) {
     drawMesh(cloudMesh, tmpM, 1, 0.97, 1);
   }
 
+  // In a headset the page's words hang over the far edge of the platform, tilted to the eye,
+  // drawn before the tiles so that they stay while a platform is built or taken down.
+  if (xr.session) {
+    vrText();
+    setText(true);
+    setBlend(true);
+    place(tmpM, 0, 11, -bounds.z - 4, -0.5, 0, 30);
+    drawMesh(textMesh, tmpM, 1, 1, 1);
+    setBlend(false);
+    setText(false);
+  }
+
   // A platform builds itself tile after tile in the order the plan is written, and is
   // taken down the same way when the mission is over — the VR grid drawing itself in.
   const moving = bootT < 1.9 || downT >= 0;
@@ -955,14 +967,4 @@ function scene(ex: number, ez: number) {
   // The title's rainbow stands behind the far edge of the platform, the one time the
   // camera is low enough to see a whole one.
   if (phase === 'title' || phase === 'menu') arch(0, -16, -0.3, 0.85, false); // fixed: the camera looks at the origin here
-  // In a headset the page's words hang over the far edge of the platform, tilted to the eye.
-  if (xr.session) {
-    vrText();
-    setText(true);
-    setBlend(true);
-    place(tmpM, 0, 11, -bounds.z - 4, -0.5, 0, 30);
-    drawMesh(textMesh, tmpM, 1, 1, 1);
-    setBlend(false);
-    setText(false);
-  }
 }
