@@ -132,9 +132,10 @@ export function setSky(on: boolean, r = 0, g = 0, b = 0) {
 // itself cannot be seen. A panel of 1 by 0.625 maps it edge to edge (see the shader).
 gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-// One transparent texel from the start: a sampler bound to an empty texture makes Firefox
-// warn on every draw, headset or not.
-gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+// One transparent texel from the start, with real data: a sampler bound to an empty
+// texture makes Firefox warn on every draw, and a null upload makes it warn once about
+// "lazy initialization" instead.
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
 export function text(c: HTMLCanvasElement) {
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
 }
