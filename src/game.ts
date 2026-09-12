@@ -21,8 +21,6 @@ import {
 const NAME = 'UNICORN VR';
 const STORE = 'lic13.'; // every key prefixed: the competition site shares one origin
 const N = LEVELS.length;
-/** Every colour there is to take over a whole run — the horn's full set of bands. */
-const ALL_GEMS = LEVELS.reduce((a, l) => a + l.map.join('').split('c').length - 1, 0);
 /** What one sighting costs the world. Thirteen of them and there is no colour left. */
 const FADE = 0.077;
 
@@ -373,16 +371,15 @@ function hud() {
         (clock <= par ? 'b' : '') + '">TIME   ' + fmt(clock) + '</span><br>BEST   ' + fmt(best(level)), 0.5) + '</div>';
     l = level + 1 < N ? 'NEXT STAGE...' : '';
   } else if (phase === 'end') {
-    const full = bands === ALL_GEMS;
     m =
       phaseT < 2
         ? ''
         : line('ALL MISSIONS COMPLETE', 0) + '<div class="s t x">' + line('TOTAL         ' + fmt(runT), 1) +
           line('COLOUR KEPT   ' + Math.round((1 - grey) * 100) + ' %', 2) +
-          line('KEYS          ' + bands + ' / ' + ALL_GEMS, 3) + '</div>' +
+          '</div>' +
           line('<div class=s><br>' +
-            (!grey && full ? 'PERFECT RUN' : !grey ? 'NO ONE EVER SAW YOU' : grey === 1 ? 'THE COLOUR IS GONE.<br>LIFE IS NOT A FAIRY TALE.' : full ? 'EVERY KEY TAKEN' : '') +
-            '</div>', 4);
+            (!grey ? 'PERFECT RUN · NO ONE EVER SAW YOU' : grey === 1 ? 'THE COLOUR IS GONE.<br>LIFE IS NOT A FAIRY TALE.' : '') +
+            '</div>', 3);
     l = phaseT > 3 ? 'SPACE · AGAIN' : '';
   }
   set(mid, m);
@@ -815,7 +812,7 @@ export function draw() {
   // eight times gets a beige one. A perfect run gets the second, inverted arch too.
   if (phase === 'end' && phaseT > 1) {
     const k = Math.min(1, (phaseT - 1) / 3);
-    arch(player.x, player.z, cam.pitch, k * (2 - k), !grey && bands === ALL_GEMS);
+    arch(player.x, player.z, cam.pitch, k * (2 - k), !grey);
   }
   // The title's rainbow stands behind the far edge of the platform, the one time the
   // camera is low enough to see a whole one.
