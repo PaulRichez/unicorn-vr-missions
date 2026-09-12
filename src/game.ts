@@ -764,6 +764,8 @@ function drawHunter(h: Hunter.Hunter) {
 
 function vrText() {
   const bar = mid.querySelector('.b')?.textContent;
+  // Locked missions are dimmed on the page; the panel dims the same lines.
+  const dim = Array.from(mid.querySelectorAll('.d'), (e) => e.textContent);
   const key = [top, mid, low].map((e) => e.innerText).join('\n');
   if (key === hudKey) return;
   hudKey = key;
@@ -772,7 +774,7 @@ function vrText() {
   tx.font = 'bold 34px ui-monospace,Consolas,monospace';
   let y = 44;
   for (const l of key.split('\n')) {
-    tx.fillStyle = '#fff5fb';
+    tx.fillStyle = dim.includes(l) ? '#fff5fb59' : '#fff5fb';
     if (l && l === bar) { tx.fillStyle = '#ff3fb0'; tx.fillRect(312, y - 33, 400, 44); tx.fillStyle = '#2a0730'; }
     tx.fillText(l, 512, y);
     y += 44;
