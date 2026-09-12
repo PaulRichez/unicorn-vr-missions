@@ -28,19 +28,11 @@ export const quad = (out: number[], a: V3, b: V3, c: V3, d: V3) => {
 // Parts are emitted straight into a shared buffer through a transform, so normals fall
 // out of the triangle winding and never need transforming separately.
 
-/** Position, then pitch about X and yaw about Y, applied to a part's local space. */
-type Xf = [x: number, y: number, z: number, pitch: number, yaw: number];
-
-function put(t: Xf, x: number, y: number, z: number): V3 {
-  const sa = Math.sin(t[3]), ca = Math.cos(t[3]);
-  const sb = Math.sin(t[4]), cb = Math.cos(t[4]);
-  const y1 = y * ca - z * sa;
-  const z1 = y * sa + z * ca;
-  return [x * cb + z1 * sb + t[0], y1 + t[1], -x * sb + z1 * cb + t[2]];
-}
+/** A part's offset in the shared buffer. Parts are posed by their model matrix, not here. */
+const put = (t: V3, x: number, y: number, z: number): V3 => [x + t[0], y + t[1], z + t[2]];
 
 /** A box extruded along +Y whose cross-section shrinks: neck, skull, muzzle. */
-function prism(out: number[], t: Xf, w0: number, d0: number, w1: number, d1: number, h: number) {
+function prism(out: number[], t: V3, w0: number, d0: number, w1: number, d1: number, h: number) {
   const p = (x: number, y: number, z: number) => put(t, x, y, z);
   const a = [p(-w0 / 2, 0, -d0 / 2), p(w0 / 2, 0, -d0 / 2), p(w0 / 2, 0, d0 / 2), p(-w0 / 2, 0, d0 / 2)];
   const b = [p(-w1 / 2, h, -d1 / 2), p(w1 / 2, h, -d1 / 2), p(w1 / 2, h, d1 / 2), p(-w1 / 2, h, d1 / 2)];
@@ -57,7 +49,7 @@ function prism(out: number[], t: Xf, w0: number, d0: number, w1: number, d1: num
  * rather than round. Flat-shaded, the facets read as a stylised cloud â€” the only kind a
  * polygon renderer can afford. `squash` flattens it into a bank rather than a puff.
  */
-export function cloudInto(out: number[], t: Xf, r: number, rings: number, sides: number) {
+function cloudInto(out: number[], t: V3, r: number, rings: number, sides: number) {
   const at = (i: number, j: number): V3 => {
     const th = (i / rings) * Math.PI;
     const ph = (j / sides) * Math.PI * 2;
@@ -82,7 +74,7 @@ export function puff(scale: number): Float32Array {
     [0.66, 0.32, 0.02, 0.38], [0.02, 0.28, 0.16, 0.42],
   ];
   for (const [x, y, z, r] of lobes) {
-    cloudInto(out, [x * scale, y * scale, z * scale, 0, 0], r * scale, 6, 10);
+    cloudInto(out, [x * scale, y * scale, z * scale], r * scale, 6, 10);
   }
   return new Float32Array(out);
 }
@@ -114,8 +106,8 @@ export function prismSolid(
 ): Float32Array {
   const b = Math.min(bevel, w1 / 2, d1 / 2); // a tip narrower than the chamfer would turn inside out
   const out: number[] = [];
-  prism(out, [0, 0, 0, 0, 0], w0, d0, w1, d1, h - b);
-  prism(out, [0, h - b, 0, 0, 0], w1, d1, w1 - 2 * b, d1 - 2 * b, b);
+  prism(out, [0, 0, 0], w0, d0, w1, d1, h - b);
+  prism(out, [0, h - b, 0], w1, d1, w1 - 2 * b, d1 - 2 * b, b);
   return new Float32Array(out);
 }
 

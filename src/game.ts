@@ -838,8 +838,10 @@ function scene(ex: number, ez: number) {
     vrText();
     setText(true);
     setBlend(true);
+    gl.disable(gl.DEPTH_TEST); // the words are interface: nothing, not even the arch, hides them
     place(tmpM, 0, 11, -bounds.z - 4, -0.5, 0, 30);
     drawMesh(textMesh, tmpM, 1, 1, 1);
+    gl.enable(gl.DEPTH_TEST);
     setBlend(false);
     setText(false);
   }
