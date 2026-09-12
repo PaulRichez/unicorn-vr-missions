@@ -796,9 +796,6 @@ export function draw() {
   }
   // Once per eye: the headset's view and projection, behind the room placement that
   // shrinks the world to a table top. The eye is handed back to the game in tiles.
-  // The platform's near edge stays 35 cm in front whatever its size: a big one reaches
-  // further out over the table, a small one sits close, and both can be leaned over.
-  xr.z = -0.35 - bounds.z * xr.k;
   place(roomM, 0, 0.9, xr.z, 0, 0, xr.k);
   for (const v of pose.views) {
     const o = layer.getViewport(v);

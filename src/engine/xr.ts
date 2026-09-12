@@ -11,9 +11,11 @@ export const xr = {
   frame: null as any,
   space: null as any,
   /** Room from world: a tile is fifteen centimetres, the table stands 0.9 m high, and the
-   * near edge of every platform is a hand's reach in front of the player (see draw). */
+   * platform's centre is always at the same spot, 1.2 m ahead: the largest one ends a
+   * hand's reach from the player, a small one a little further, and nothing ever moves
+   * when the list changes the platform under the words. */
   k: 0.05,
-  z: 0,
+  z: -1.2,
   /** Set by main: called when a session begins and when it ends (see loop.ts). */
   onFlip: () => {},
 };
