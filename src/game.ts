@@ -384,11 +384,9 @@ function hud() {
   const box =
     '<div class="x t" data-p=' + (fails > 2 ? 'Enter' : 'KeyR') + '><span style="opacity:.6">' + (fails > 2 ? '\u23ED' : '\u21BB') + '  LIMIT  ' + fmt(limit) +
     '</span>\n<span class="' + (limit - clock < 10 && (t * 4) % 1 < 0.5 ? 'r' : '') + '">   TIME   ' + fmt(clock) + '</span></div>';
-  const inPlay = phase === 'play' && !(caughtT > 0 && caughtT < 0.9);
   set(top, phase === 'boot' || phase === 'title' || phase === 'menu' || phase === 'end' ? ''
     : '<span class=x data-p=Escape>\u2630  MISSION ' + n + '</span>' +
-      (phase === 'play' && fails > 2 && !COARSE ? '\nENTER · SKIP' : '') +
-      (COARSE && inPlay ? '\n' + box : ''));
+      (phase === 'play' && fails > 2 && !COARSE ? '\nENTER · SKIP' : ''));
   // The big button says what it does on this screen; the pad only shows where it serves.
   const label = phase === 'title' || phase === 'menu' ? 'START' : phase === 'won' ? 'NEXT' : phase === 'end' ? (phaseT > 3 ? 'AGAIN' : '') : '\u{1F4A8}';
   set(fart, label);
@@ -436,7 +434,7 @@ function hud() {
     l = 'TARGET ' + fmt(par) + '      LIMIT ' + fmt(limit);
   } else if (phase === 'play') {
     m = caughtT > 0 ? '<span class=r>' + (timeUp ? 'TIME UP<br>' : '') + 'MISSION FAILED</span>' : '';
-    l = caughtT > 0 && caughtT < 0.9 ? 'TRY AGAIN' : COARSE ? '' : box;
+    l = caughtT > 0 && caughtT < 0.9 ? 'TRY AGAIN' : box; // bottom centre, off the platform's corner
   } else if (phase === 'won') {
     // The original's table of three times, filled in by the machine before you ran.
     m =
