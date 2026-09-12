@@ -25,7 +25,7 @@ const TABLE = [
   [2, 3.5, 14, 6.2, 5, 5, 200, -74, 0, 1, 0], // the spear
 ];
 
-/** coat · steel · trim · boot · skin · felt · unused */
+/** coat · steel · trim · boot · skin · felt */
 export const PALETTE: [number, number, number][] = [
   [0.16, 0.24, 0.19],
   [0.72, 0.75, 0.8],
@@ -33,7 +33,6 @@ export const PALETTE: [number, number, number][] = [
   [0.14, 0.11, 0.1],
   [0.85, 0.7, 0.6],
   [0.23, 0.17, 0.14],
-  [0.1, 0.1, 0.1],
 ];
 
 export const parts: Part[] = buildFrom(TABLE);

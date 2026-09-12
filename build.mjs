@@ -66,11 +66,35 @@ async function squeeze(js) {
       booleans_as_integers: true,
       drop_console: true,
       pure_getters: true,
+      // unsafe_comps, unsafe_proto, unsafe_undefined, keep_fargs: false and hoist_funs were
+      // measured on 12/09: +33 B zipped together. Not worth their risk.
     },
-    mangle: { toplevel: true },
+    // Property mangling on an explicit list of the game's own object keys only — never the
+    // DOM's, WebGL's or Array's — so nothing can be renamed out from under a browser API.
+    mangle: {
+      toplevel: true,
+      properties: {
+        regex: /^(yaw|mark|markT|route|routes|target|waiting|path|curious|seen|asleep|limit|brief|mesh|model|rgb|geo|color|age|hue|life|taken|pitch|dist|speed|down|hit|moved|leg|vao|count|par)$/,
+      },
+    },
     format: { comments: false },
   });
-  return res.code ?? js;
+  return shrinkGlsl(res.code ?? js);
+}
+
+/**
+ * The shaders travel as string literals that terser leaves alone: indentation, spaces round
+ * operators and after commas are dead weight there. Collapsed here, on the minified output,
+ * so the sources stay readable. Only spaces next to punctuation go; tokens stay apart.
+ */
+function shrinkGlsl(js) {
+  return js.replace(/"#version 300 es(?:[^"\\]|\\.)*"/g, (glsl) =>
+    glsl
+      .replace(/\\n +/g, '\\n')
+      .replace(/ ([=+\-*\/,<>?:]) /g, '$1')
+      .replace(/([,;{}()]) /g, '$1')
+      .replace(/ ([{}()])/g, '$1'),
+  );
 }
 
 /**
@@ -83,7 +107,7 @@ const htmlUnsafe = (js) => /<\/script/i.test(js);
 /** Roadroller's context-mixing packer. Slow (seconds), so release builds only. */
 async function roadroll(js) {
   const packer = new Packer([{ data: js, type: 'js', action: 'eval' }], { maxMemoryMB: 150 });
-  await packer.optimize(1);
+  await packer.optimize(2); // slower, a few dozen bytes better
   const { firstLine, secondLine } = packer.makeDecoder();
   const packed = firstLine + secondLine;
   if (htmlUnsafe(packed)) throw new Error('roadroller output is not HTML-safe');

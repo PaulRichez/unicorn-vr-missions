@@ -10,7 +10,7 @@ export const gl = canvas.getContext('webgl2', { antialias: true, alpha: false })
 const VERT = `#version 300 es
 in vec3 p;
 in vec3 n;
-uniform mat4 uVP;
+uniform mat4 uV;
 uniform mat4 uM;
 out vec3 vN;
 out vec3 vP;
@@ -20,16 +20,16 @@ void main(){
   vP = w.xyz;
   vN = mat3(uM) * n;
   vL = p.y;
-  gl_Position = uVP * w;
+  gl_Position = uV * w;
 }`;
 
 // Fragment stage, explained here rather than inside the string: terser never touches the
 // contents of a string literal, so a comment written in GLSL ships in the zip.
 //
-//   uBand  x = how many colour bands the horn carries, y = 1 / its length
-//   uDark  xy = where the dark stands, z = how far its reach extends
-//   uAt    the world position to test for the viewmodel, which has none of its own
-//   uGrey  permanent desaturation: what every past failure has cost for good
+//   uB  x = how many colour bands the horn carries, y = 1 / its length
+//   uD  xy = where the dark stands, z = how far its reach extends
+//   uT    the world position to test for the viewmodel, which has none of its own
+//   uG  permanent desaturation: what every past failure has cost for good
 //
 // The banded branch stacks discrete colours along the horn, base to tip, never a
 // gradient. Its hue ramp stops short of a full turn so the last band lands on violet
@@ -54,17 +54,17 @@ precision highp float;
 in vec3 vN;
 in vec3 vP;
 in float vL;
-uniform vec3 uEye;
-uniform vec3 uCol;
-uniform float uIrid;
-uniform vec2 uBand;
-uniform vec3 uDark;
-uniform vec2 uAt;
-uniform float uGrey;
-uniform float uAlpha;
-uniform float uFade;
-uniform vec3 uSky2;
-uniform float uSkyMode;
+uniform vec3 uE;
+uniform vec3 uC;
+uniform float uI;
+uniform vec2 uB;
+uniform vec3 uD;
+uniform vec2 uT;
+uniform float uG;
+uniform float uA;
+uniform float uF;
+uniform vec3 uS;
+uniform float uK;
 out vec4 o;
 
 vec3 hsv(float h, float s, float v){
@@ -73,9 +73,9 @@ vec3 hsv(float h, float s, float v){
 }
 
 void main(){
-  if (uSkyMode > .5) {
-    vec3 d = normalize(vP - vec3(uEye.x, 0., uEye.z));
-    vec3 s = mix(uCol, uSky2, clamp(d.y * 1.2 + .44, 0., 1.));
+  if (uK > .5) {
+    vec3 d = normalize(vP - vec3(uE.x, 0., uE.z));
+    vec3 s = mix(uC, uS, clamp(d.y * 1.2 + .44, 0., 1.));
     // The arch is centred on a raised axis and only drawn well above the horizon: the
     // platform floats, so anything near eye level shows up in the gap around it and
     // reads as passing in front of the level.
@@ -84,28 +84,28 @@ void main(){
     if (band > 0. && band < 1.) {
       s = mix(s, hsv(band * .82, .8, 1.), .7 * smoothstep(.16, .34, d.y));
     }
-    o = vec4(mix(s, vec3(dot(s, vec3(.3, .59, .11))), uGrey), 1.);
+    o = vec4(mix(s, vec3(dot(s, vec3(.3, .59, .11))), uG), 1.);
     return;
   }
   vec3 n = normalize(vN);
-  vec3 v = normalize(uEye - vP);
+  vec3 v = normalize(uE - vP);
   float d = max(dot(n, normalize(vec3(.35, .9, .25))), 0.);
-  vec3 c = uCol * (mix(vec3(.5, .3, .45), vec3(.62, .58, .52), n.y * .5 + .5) + .5 * d);
+  vec3 c = uC * (mix(vec3(.5, .3, .45), vec3(.62, .58, .52), n.y * .5 + .5) + .5 * d);
 
-  if (uIrid > .5) {
-    float t = clamp(vL * uBand.y, 0., .999);
-    float hue = floor(t * uBand.x) / uBand.x * .82;
+  if (uI > .5) {
+    float t = clamp(vL * uB.y, 0., .999);
+    float hue = floor(t * uB.x) / uB.x * .82;
     float sheen = 1. - abs(dot(n, v));
     c = hsv(hue, .95, .5 + .3 * d + .25 * sheen);
   }
 
   c = mix(c, vec3(.42, .2, .5), clamp(-vP.y * 1.2, 0., 1.) * .7);
 
-  vec2 wp = uIrid > .5 ? uAt : vP.xz;
-  float g = max(uGrey, 1. - smoothstep(uDark.z * .3, uDark.z, distance(wp, uDark.xy)));
+  vec2 wp = uI > .5 ? uT : vP.xz;
+  float g = max(uG, 1. - smoothstep(uD.z * .3, uD.z, distance(wp, uD.xy)));
   c = mix(c, vec3(dot(c, vec3(.3, .59, .11))), g);
 
-  o = vec4(c, uAlpha * (uFade > 0. ? clamp(vL / uFade, 0., 1.) : 1.));
+  o = vec4(c, uA * (uF > 0. ? clamp(vL / uF, 0., 1.) : 1.));
 }`;
 
 function shader(type: number, src: string) {
@@ -121,24 +121,24 @@ gl.attachShader(program, shader(gl.FRAGMENT_SHADER, FRAG));
 gl.linkProgram(program);
 gl.useProgram(program);
 
-const uVP = gl.getUniformLocation(program, 'uVP');
+const uV = gl.getUniformLocation(program, 'uV');
 const uM = gl.getUniformLocation(program, 'uM');
-const uEye = gl.getUniformLocation(program, 'uEye');
-const uCol = gl.getUniformLocation(program, 'uCol');
-const uIrid = gl.getUniformLocation(program, 'uIrid');
-const uBand = gl.getUniformLocation(program, 'uBand');
-const uDark = gl.getUniformLocation(program, 'uDark');
-const uAt = gl.getUniformLocation(program, 'uAt');
-const uGrey = gl.getUniformLocation(program, 'uGrey');
-const uAlpha = gl.getUniformLocation(program, 'uAlpha');
-const uFade = gl.getUniformLocation(program, 'uFade');
-const uSky2 = gl.getUniformLocation(program, 'uSky2');
-const uSkyMode = gl.getUniformLocation(program, 'uSkyMode');
+const uE = gl.getUniformLocation(program, 'uE');
+const uC = gl.getUniformLocation(program, 'uC');
+const uI = gl.getUniformLocation(program, 'uI');
+const uB = gl.getUniformLocation(program, 'uB');
+const uD = gl.getUniformLocation(program, 'uD');
+const uT = gl.getUniformLocation(program, 'uT');
+const uG = gl.getUniformLocation(program, 'uG');
+const uA = gl.getUniformLocation(program, 'uA');
+const uF = gl.getUniformLocation(program, 'uF');
+const uS = gl.getUniformLocation(program, 'uS');
+const uK = gl.getUniformLocation(program, 'uK');
 
 /** Switch to the flat gradient used by the dome; the colour passed to draw is the low end. */
 export function setSky(on: boolean, r = 0, g = 0, b = 0) {
-  gl.uniform1f(uSkyMode, on ? 1 : 0);
-  if (on) gl.uniform3f(uSky2, r, g, b);
+  gl.uniform1f(uK, on ? 1 : 0);
+  if (on) gl.uniform3f(uS, r, g, b);
 }
 
 gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -156,17 +156,17 @@ export function setBlend(on: boolean) {
  * instead of ending on two hard stumps in the sky.
  */
 export function setFade(f: number) {
-  gl.uniform1f(uFade, f);
+  gl.uniform1f(uF, f);
 }
 export function setBands(count: number, length: number) {
-  gl.uniform2f(uBand, count, 1 / length);
+  gl.uniform2f(uB, count, 1 / length);
 }
 
 /** Where the dark stands and how far it reaches, plus the colour it has taken for good. */
 export function setDark(x: number, z: number, reach: number, grey: number, atX: number, atZ: number) {
-  gl.uniform3f(uDark, x, z, reach);
-  gl.uniform2f(uAt, atX, atZ);
-  gl.uniform1f(uGrey, grey);
+  gl.uniform3f(uD, x, z, reach);
+  gl.uniform2f(uT, atX, atZ);
+  gl.uniform1f(uG, grey);
 }
 
 gl.enable(gl.DEPTH_TEST);
@@ -203,8 +203,8 @@ export function dispose(m: Mesh) {
  * by setting this to the projection alone, so its model matrix lives in view space.
  */
 export function setVP(vp: M4, ex: number, ey: number, ez: number) {
-  gl.uniformMatrix4fv(uVP, false, vp);
-  gl.uniform3f(uEye, ex, ey, ez);
+  gl.uniformMatrix4fv(uV, false, vp);
+  gl.uniform3f(uE, ex, ey, ez);
 }
 
 /**
@@ -219,9 +219,9 @@ export function frame(vp: M4, ex: number, ey: number, ez: number, r: number, g: 
 
 export function draw(m: Mesh, model: M4, r: number, g: number, b: number, irid = 0, alpha = 1) {
   gl.uniformMatrix4fv(uM, false, model);
-  gl.uniform3f(uCol, r, g, b);
-  gl.uniform1f(uIrid, irid);
-  gl.uniform1f(uAlpha, alpha);
+  gl.uniform3f(uC, r, g, b);
+  gl.uniform1f(uI, irid);
+  gl.uniform1f(uA, alpha);
   gl.bindVertexArray(m.vao);
   gl.drawArrays(gl.TRIANGLES, 0, m.count);
 }

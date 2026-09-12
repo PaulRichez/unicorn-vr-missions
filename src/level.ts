@@ -3,7 +3,7 @@
 // the edge of the platform is the boundary, which is what lets a level have a
 // silhouette instead of always being a rectangle.
 //
-//   U start · E exit · c colour to take · o cloud (decor)
+//   U start · E exit · c colour to take
 //   , flowers that bloom underfoot with a pop — a noise you did not choose
 //   ~ enchanted meadow that keeps a glitter of every step for a while — the snowfield
 //   - a tunnel under the hedge: the unicorn slips through, a hunter neither enters nor
@@ -276,7 +276,6 @@ export let ROWS = 0;
 export let spawn = { i: 0, j: 0 };
 export let exit = { i: 0, j: 0 };
 export let gems: { i: number; j: number; hue: number; taken: boolean }[] = [];
-export let covers: { i: number; j: number }[] = [];
 export let routes: [number, number][][] = [];
 /** The hedge roofs over the tunnels, drawn last and see-through so the unicorn shows under them. */
 export let roofs: Part[] = [];
@@ -340,7 +339,6 @@ export function load(n: number): Part[] {
   limit = lv.limit;
   brief = lv.brief;
   gems = [];
-  covers = [];
   roofs = [];
 
   for (let j = 0; j < ROWS; j++) {
@@ -349,7 +347,6 @@ export function load(n: number): Part[] {
       if (c === 'U') spawn = { i, j };
       if (c === 'E') exit = { i, j };
       if (c === 'c') gems.push({ i, j, hue: 0.13, taken: false });
-      if (c === 'o') covers.push({ i, j });
     }
   }
 
@@ -403,9 +400,6 @@ export function load(n: number): Part[] {
     }
   }
 
-  for (const c of covers) {
-    parts.push({ mesh: puffMesh, model: place(mat(), wx(c.i), 0, wz(c.j), 0, 0), rgb: [1, 1, 1] });
-  }
 
   return parts;
 }
