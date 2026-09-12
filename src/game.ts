@@ -568,7 +568,7 @@ function play(dt: number) {
     const fx = Math.sin(player.yaw), fz = -Math.cos(player.yaw);
     burst(player.x - fx * 1.3, player.z - fz * 1.3, 1.1);
     // A low sawtooth that sags in pitch, retriggered fast with a tremolo: the brrr.
-    sfx([1.6, 0.15, 88, 0.01, 0.2, 0.22, 1, 1.8, -5, , , , 0.05, 0.25, 9, , , 0.7, 0.03, 0.35]);
+    sfx([1.8, 0.45, 48, 0.005, 0.55, 0.12, 3, 1.4, -25, , , , 0.03, 0.7, 6, , , 0.85, 0.01, 0.5]); // tuned by ear by Paul, 12/09
     noise(Hunter.HEARING);
   }
   if (ringAge >= 0 && (ringAge += dt) > 0.7) ringAge = -1;
