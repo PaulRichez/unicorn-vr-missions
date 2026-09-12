@@ -1,4 +1,4 @@
-# Unicorn VR Mission
+# Unicorn VR Missions
 
 An entry for [js13kGames](https://js13kgames.com) 2026, theme **Unicorns and Rainbows**.
 
