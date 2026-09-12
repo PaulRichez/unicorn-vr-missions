@@ -110,12 +110,16 @@ ui.innerHTML =
   '[hidden]{display:none!important}' +
   // Pressing shows: the button shrinks a touch and goes full pink for as long as it is held.
   '.x:active,.z:active{transform:scale(.92);background:#ff3fb0!important;color:#2a0730}' +
+  '.o{-webkit-text-stroke:1px #ff4fa0;color:transparent;font-style:italic}' +
   '.s{font-size:16px;letter-spacing:.14em;line-height:1.6}.w{letter-spacing:.6em}.d{opacity:.35}.r{color:#ff3b6b}.u{margin-bottom:auto}' +
   // A table is a left-aligned block that still sits in the middle of the screen: the
   // centred layer would otherwise centre every row of a table on its own width.
   '.q{font-size:13px;letter-spacing:.3em;opacity:.7;margin:1em 0}.t{display:inline-block;text-align:left}' +
-  // The prompt breathes.
-  '.p{animation:p 1.2s infinite}@keyframes p{50%{opacity:.35}}</style>';
+  // Every screen arrives instead of cutting in: .f rises into place, .p breathes on the
+  // prompt, and MISSION FAILED flashes white and shakes — the sting, written in type.
+  '.f{animation:f .5s both}.p{animation:p 1.2s infinite}.k{animation:s .5s}' +
+  '@keyframes f{from{opacity:0;translate:0 .6em}}@keyframes p{50%{opacity:.35}}' +
+  '@keyframes s{0%{color:#fff}25%,75%{translate:-8px}50%{translate:8px}}</style>';
 const top = document.createElement('div');
 const mid = document.createElement('div');
 const low = document.createElement('div');
@@ -188,7 +192,7 @@ ui.addEventListener('touchstart', () => {});
 /** Writes only on change: rewriting the same HTML every frame would restart its animations. */
 const set = (el: HTMLElement, s: string) => { if (el.dataset.h !== s) el.innerHTML = el.dataset.h = s; };
 /** One line of a screen that builds itself up: the i-th fades in after the others. */
-const line = (s: string) => '<div>' + s + '</div>';
+const line = (s: string) => '<div class=f>' + s + '</div>';
 
 /** A touchscreen, most likely: a first guess from the media query, settled by the first
  *  pointer that actually arrives — the hints and the pad change, the rules do not. */
@@ -299,10 +303,8 @@ function reset(caught: boolean) {
   stride = gait = player.speed = 0;
   Hunter.reset();
   Hunter.look(); // the gaze is on the floor while the brief is up, not only once play starts
-  if (caught) {
-    grey = Math.min(1, grey + FADE);
-    sfx([1.1, , 90, 0.1, 0.4, 0.8, 4, 0.5, -3, , , , , 1.5, , 0.4, 0.2]);
-  }
+  // Caught: a little colour leaves the world for good. The sting already said it out loud.
+  if (caught) grey = Math.min(1, grey + FADE);
   follow(0, true); // no glide back to the start: cut straight there
 }
 
@@ -410,7 +412,7 @@ function hud() {
   } else if (phase === 'title') {
     m =
       '<div><div class=q>TACTICAL FLATULENCE ACTION</div><span class=w>' + NAME + '<br>MISSIONS</span>' +
-      '<div class=q>NO ONE TAKES A UNICORN BY FORCE.</div></div>';
+      '<div class=q>NO ONE TAKES A UNICORN BY FORCE.<br>ONLY BY PATIENCE AND TRICKERY.</div></div>';
     // The prompt sits at the bottom, on the sky, not on the tiles; the pad speaks for itself.
     l = '<div class="r p" style="font-size:26px;letter-spacing:.3em">' + start + '</div>' + (kb ? '\nARROWS / WASD · MOVE      SPACE · FART      M · MUTE' : '');
   } else if (phase === 'menu') {
@@ -431,13 +433,13 @@ function hud() {
       : line('START');
     l = 'TARGET ' + fmt(par) + '      LIMIT ' + fmt(limit);
   } else if (phase === 'play') {
-    m = caughtT > 0 ? '<span class=r>' + (timeUp ? 'TIME UP<br>' : '') + 'MISSION FAILED</span>' : '';
+    m = caughtT > 0 ? '<span class="o k">' + (timeUp ? 'TIME UP<br>' : '') + 'MISSION FAILED</span>' : '';
     l = caughtT > 0 && caughtT < 0.9 ? 'TRY AGAIN' : box; // bottom centre, off the platform's corner
   } else if (phase === 'won') {
     // The original's table of three times, filled in by the machine before you ran.
     m =
       line('MISSION ' + n + ' CLEARED') + '<div class="s t x">' +
-      line('1ST    ' + fmt(par) + '<br><span class="' +
+      line('1ST    ' + fmt(par) + '<br>2ND    ' + fmt(par * 1.5) + '<br>3RD    ' + fmt(limit) + '<br><span class="' +
         (clock <= par ? 'b' : '') + '">TIME   ' + fmt(clock) + '</span>') + '</div>';
     l = level + 1 < N ? 'NEXT STAGE...' : '';
   } else if (phase === 'end') {
@@ -448,7 +450,7 @@ function hud() {
           line('COLOUR KEPT   ' + Math.round((1 - grey) * 100) + ' %') +
           '</div>' +
           line('<div class=s><br>' +
-            (!grey ? 'NO ONE EVER SAW YOU' : grey === 1 ? 'LIFE IS NOT A FAIRY TALE' : '') +
+            (!grey ? 'PERFECT RUN · NO ONE EVER SAW YOU' : grey === 1 ? 'THE COLOUR IS GONE.<br>LIFE IS NOT A FAIRY TALE.' : '') +
             '</div>');
     l = phaseT > 3 && !COARSE ? 'SPACE · AGAIN' : '';
   }
@@ -507,6 +509,7 @@ export function update(dt: number) {
     if (pressed.has('ArrowDown') || pressed.has('KeyS')) preview((cursor + 1) % N);
     if (pressed.has('Escape')) phase = 'title';
     if (go && cursor <= cleared()) begin(cursor);
+    else if (go) sfx([0.6, , 120, 0.02, 0.05, 0.1, 2, 0.3]);
   } else if (phase === 'end') {
     // The camera backs off until the platform is small in the sky, and the horn draws
     // the arch it earned — through the same grey as everything else.
@@ -651,6 +654,7 @@ function play(dt: number) {
         // The last colour: the goal appears over the exit, in a shower of its own.
         opened = true;
         burst(wx(exit.i), wz(exit.j), 1.2);
+        sfx([0.8, , 660, 0.02, 0.15, 0.4, 1, 1.5, , , 330, 0.08, 0.1]);
       }
     }
   }

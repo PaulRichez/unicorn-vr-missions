@@ -116,7 +116,7 @@ export const LEVELS: Level[] = [
     routes: [[[2, 2], [8, 2], [8, 6], [2, 6]], [[10, 1], [10, 8], [1, 8], [10, 8]]],
     par: 31,
     limit: 80,
-    brief: 'THE EDGE HIDES NOTHING',
+    brief: 'WALLS HIDE YOU. THE EDGE DOES NOT',
   },
   // 6 — THE FLOWERS TELL
   {
@@ -220,7 +220,7 @@ export const LEVELS: Level[] = [
     routes: [[[0, 3], [6, 3]], [[6, 5], [0, 5]], [[3, 7], [3, 1]]],
     par: 23,
     limit: 60,
-    brief: '',
+    brief: 'SAME FLOOR. THREE WATCHES',
   },
   // 12 — EVERYTHING YOU KNOW
   {
@@ -239,7 +239,7 @@ export const LEVELS: Level[] = [
     routes: [[[9, 2], [9, 2]], [[2, 6], [6, 6]], [[10, 4], [7, 4]]],
     par: 52,
     limit: 135,
-    brief: '',
+    brief: 'EVERYTHING YOU KNOW',
   },
   // 13 — THE LONG WATCH
   {
@@ -259,7 +259,7 @@ export const LEVELS: Level[] = [
     routes: [[[4, 2], [4, 8]], [[0, 1], [0, 9]], [[8, 9], [8, 1]]],
     par: 41,
     limit: 105,
-    brief: '',
+    brief: 'NO TRICK LEFT. ONLY PATIENCE',
   },
 ];
 
