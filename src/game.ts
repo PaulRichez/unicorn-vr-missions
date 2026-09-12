@@ -832,19 +832,21 @@ function scene(ex: number, ez: number) {
     drawMesh(cloudMesh, tmpM, 1, 0.97, 1);
   }
 
-  // In a headset the page's words hang over the far edge of the platform, tilted to the eye,
-  // drawn before the tiles so that they stay while a platform is built or taken down.
-  if (xr.session) {
+  // In a headset the page's words hang over the far edge of the platform, tilted to the eye.
+  // Drawn last, over everything, depth test off: they are interface, and they must stay
+  // while a platform is built or taken down, so both exits of this function call this.
+  const words = () => {
+    if (!xr.session) return;
     vrText();
     setText(true);
     setBlend(true);
-    gl.disable(gl.DEPTH_TEST); // the words are interface: nothing, not even the arch, hides them
+    gl.disable(gl.DEPTH_TEST);
     place(tmpM, 0, 11, -bounds.z - 4, -0.5, 0, 30);
     drawMesh(textMesh, tmpM, 1, 1, 1);
     gl.enable(gl.DEPTH_TEST);
     setBlend(false);
     setText(false);
-  }
+  };
 
   // A platform builds itself tile after tile in the order the plan is written, and is
   // taken down the same way when the mission is over — the VR grid drawing itself in.
@@ -871,6 +873,7 @@ function scene(ex: number, ez: number) {
     for (const p of roofs) lifted(p, n - 1, 0.55);
     setBlend(false);
     if (phase === 'title' || phase === 'menu') arch(0, -16, -0.3, 0.85, false);
+    words();
     return;
   }
 
@@ -970,4 +973,5 @@ function scene(ex: number, ez: number) {
   // The title's rainbow stands behind the far edge of the platform, the one time the
   // camera is low enough to see a whole one.
   if (phase === 'title' || phase === 'menu') arch(0, -16, -0.3, 0.85, false); // fixed: the camera looks at the origin here
+  words();
 }
