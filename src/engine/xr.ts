@@ -4,6 +4,7 @@
 // itself keeps thinking in tiles. The player never moves, so nothing can make them sick.
 
 import { gl } from './gl';
+import { pressed } from './input';
 
 export const xr = {
   session: null as any,
@@ -29,6 +30,9 @@ export function enterVR() {
     s.updateRenderState({ baseLayer: new (self as any).XRWebGLLayer(s, gl) });
     xr.space = await s.requestReferenceSpace('local-floor');
     s.onend = () => { xr.session = xr.frame = null; xr.onEnd(); };
+    // A select with no gamepad behind it — a tap on a phone in a Cardboard, a pinch of a
+    // tracked hand — is the trigger too.
+    s.onselect = (e: any) => { if (!e.inputSource.gamepad) pressed.add('Space'); };
     xr.session = s;
   });
 }
