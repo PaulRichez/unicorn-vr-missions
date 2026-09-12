@@ -1,7 +1,6 @@
-# Unicorn VR Missions
+# Unicorn VR Mission
 
 An entry for [js13kGames](https://js13kgames.com) 2026, theme **Unicorns and Rainbows**.
-The name is provisional.
 
 A stealth game in the shape of *Metal Gear Solid: VR Missions* (Sneaking mode, no weapon):
 thirteen small floating platforms, hunters walking fixed rounds, and a white unicorn that
