@@ -379,6 +379,8 @@ function hud() {
   if (ui.dataset.g !== String(grey)) ui.style.filter = 'saturate(' + (1 - (ui.dataset.g = String(grey), grey)) + ')';
   const n = two(level + 1);
   const p = cleared();
+  const start = xr.session ? 'PULL THE TRIGGER' : COARSE ? 'PRESS TO START' : 'PRESS SPACE TO START';
+  const kb = !COARSE && !xr.session; // the key hints are for a keyboard, not a thumb or a hand
   set(pct, phase === 'boot' ? '' : '<span class=x data-p=KeyM>' + (isMuted() ? '\u{1F507}' : '\u{1F50A}') + '</span>');
   // The two-line box of every VR mission; TIME turns red and pulses in the last ten seconds.
   const box =
@@ -386,7 +388,7 @@ function hud() {
     '</span>\n<span class="' + (limit - clock < 10 && (t * 4) % 1 < 0.5 ? 'r' : '') + '">   TIME   ' + fmt(clock) + '</span></div>';
   set(top, phase === 'boot' || phase === 'title' || phase === 'menu' || phase === 'end' ? ''
     : '<span class=x data-p=Escape>\u2630  MISSION ' + n + '</span>' +
-      (phase === 'play' && fails > 2 && !COARSE ? '\nENTER · SKIP' : ''));
+      (phase === 'play' && fails > 2 && kb ? '\nENTER · SKIP' : ''));
   // The big button says what it does on this screen; the pad only shows where it serves.
   const label = phase === 'title' || phase === 'menu' ? 'START' : phase === 'won' ? 'NEXT' : phase === 'end' ? (phaseT > 3 ? 'AGAIN' : '') : '\u{1F4A8}';
   set(fart, label);
@@ -402,7 +404,6 @@ function hud() {
   mid.classList.toggle('u', phase === 'title');
   let m = '';
   let l = '';
-  const start = xr.session ? 'PULL THE TRIGGER' : COARSE ? 'PRESS TO START' : 'PRESS SPACE TO START';
 
   if (phase === 'boot') {
     // The machine boots the way the original's did: a log, one line at a time.
@@ -414,7 +415,7 @@ function hud() {
       '<div><div class=q>TACTICAL FLATULENCE ACTION</div><span class=w>' + NAME + '<br>MISSIONS</span>' +
       '<div class=q>NO ONE TAKES A UNICORN BY FORCE.</div></div>';
     // The prompt sits at the bottom, on the sky, not on the tiles; the pad speaks for itself.
-    l = '<div class="r p" style="font-size:26px;letter-spacing:.3em">' + start + '</div>' + (COARSE ? '' : '\nARROWS / WASD · MOVE      SPACE · FART      M · MUTE');
+    l = '<div class="r p" style="font-size:26px;letter-spacing:.3em">' + start + '</div>' + (kb ? '\nARROWS / WASD · MOVE      SPACE · FART      M · MUTE' : '');
   } else if (phase === 'menu') {
     // The original's list: vertical, looping, cursor held at the centre, a full bar on
     // the current line, [EXIT] at the bottom whether or not it has anything to do.
@@ -426,7 +427,7 @@ function hud() {
       m += '<div class="' + (k ? '' : 'b c ') + (i > p ? 'd' : '') + '">MISSION ' + two(i + 1) + (b ? '   ' + fmt(b) : '') + '</div>';
     }
     m += '<br><span class=x data-p=Escape>EXIT</span></div></div>';
-    l = (cursor <= p ? 'TARGET ' + fmt(LEVELS[cursor].par) : 'LOCKED') + (COARSE ? '' : '\n\nUP / DOWN · CHOOSE      SPACE · START      ESC · EXIT');
+    l = (cursor <= p ? 'TARGET ' + fmt(LEVELS[cursor].par) : 'LOCKED') + (kb ? '\n\nSPACE · START      ESC · EXIT' : '');
   } else if (phase === 'intro') {
     m = phaseT > 0.5
       ? line('MISSION ' + n + '<div class=s><br>' + brief + (gems.length ? '<br>TAKE THE KEY FIRST' : '') + '</div>', 0)
@@ -798,6 +799,9 @@ export function draw() {
   }
   // Once per eye: the headset's view and projection, behind the room placement that
   // shrinks the world to a table top. The eye is handed back to the game in tiles.
+  // The platform's near edge stays 35 cm in front whatever its size: a big one reaches
+  // further out over the table, a small one sits close, and both can be leaned over.
+  xr.z = -0.35 - bounds.z * xr.k;
   place(roomM, xr.x, xr.y, xr.z, 0, 0, xr.k);
   for (const v of pose.views) {
     const o = layer.getViewport(v);

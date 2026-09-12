@@ -10,11 +10,12 @@ export const xr = {
   session: null as any,
   frame: null as any,
   space: null as any,
-  /** Room from world: one tile edge is twelve centimetres; the platform's centre stands here. */
-  k: 0.04,
+  /** Room from world: a tile is fifteen centimetres, the table stands at hip height, and
+   * the near edge of every platform is a hand's reach in front of the player (see draw). */
+  k: 0.05,
   x: 0,
-  y: 0.95,
-  z: -0.85,
+  y: 0.9,
+  z: 0,
   /** Set by main: the window loop and the viewport take over when the session ends. */
   onEnd: () => {},
 };
