@@ -6,7 +6,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { W, H, DPR } from './engine/view';
-import { gl, mesh, frame, draw as drawMesh, setBands, setDark, setBlend, setSky, setFade, type Mesh } from './engine/gl';
+import { xr, xrOK, enterVR } from './engine/xr';
+import { gl, mesh, clear, setVP, setText, text, draw as drawMesh, setBands, setDark, setBlend, setSky, setFade, type Mesh } from './engine/gl';
 import { mat, perspective, view, multiply, place, partAt, type M4 } from './engine/mat';
 import { cam, player, bounds, stick, update as moveRig, follow } from './engine/camera';
 import { sfx, toggleMute, isMuted } from './engine/audio';
@@ -55,6 +56,13 @@ const tmpM = mat();
 
 const overlay = mesh(panel(TILE, TILE));
 const cloudMesh = mesh(puff(1.1));
+/** The page's text, for the headset: one panel, one texture, redrawn when the words change. */
+const textMesh = mesh(panel(1, 0.625));
+const tc = document.createElement('canvas');
+tc.width = 1024;
+tc.height = 640;
+const tx = tc.getContext('2d')!;
+let hudKey = '';
 const gasMesh = mesh(puff(0.36));
 const ringMesh = mesh(ring(0.93, 1));
 /** A disc: a ring with no hole. Half its triangles are empty, which the GPU does not mind. */
@@ -125,11 +133,21 @@ const knob = pad.firstChild as HTMLElement;
 const fart = document.createElement('b');
 fart.className = 'z';
 fart.textContent = '\u{1F4A8}';
+/** Shown when a headset can be entered from this page; a click is the gesture a session needs. */
+const vrBtn = document.createElement('b');
+vrBtn.className = 'x';
+vrBtn.textContent = 'ENTER VR';
+vrBtn.hidden = true;
+vrBtn.style.cssText = 'position:fixed;top:18px;left:50%;translate:-50%';
+vrBtn.onclick = () => enterVR(gl);
+vrBtn.onpointerdown = (e) => e.stopPropagation(); // not a confirmation
+let vrOK = false;
+xrOK.then((ok) => { vrOK = ok; });
 top.style.cssText = 'text-align:left;white-space:pre;opacity:.9';
 mid.style.cssText = 'font-size:34px;letter-spacing:.24em;white-space:pre;line-height:1.35';
 low.style.cssText = 'opacity:.8;white-space:pre';
 pct.style.cssText = 'position:absolute;top:18px;right:22px';
-ui.append(top, mid, low, pct, pad, fart);
+ui.append(top, mid, low, pct, pad, fart, vrBtn);
 document.body.appendChild(ui);
 // Single presses from any box (data-p): the big button, the mission box, the sound box,
 // the clock, EXIT. Fingers and pens only — the mouse plays no part in this game.
@@ -380,6 +398,7 @@ function hud() {
   set(fart, label);
   fart.style.fontSize = label.length > 2 ? '20px' : '';
   fart.hidden = !COARSE || phase === 'boot';
+  vrBtn.hidden = !vrOK || !!xr.session || phase === 'boot';
   pad.hidden = !COARSE || !(phase === 'menu' || phase === 'intro' || phase === 'play');
   // The pink of the press drains out of the button until the next fart is ready.
   if (COARSE) {
@@ -389,7 +408,7 @@ function hud() {
   mid.classList.toggle('u', phase === 'title');
   let m = '';
   let l = '';
-  const start = COARSE ? 'PRESS TO START' : 'PRESS SPACE TO START';
+  const start = xr.session ? 'PULL THE TRIGGER' : COARSE ? 'PRESS TO START' : 'PRESS SPACE TO START';
 
   if (phase === 'boot') {
     // The machine boots the way the original's did: a log, one line at a time.
@@ -447,7 +466,30 @@ function hud() {
   set(low, l);
 }
 
+/** Buttons and stick flicks held down since the last step, so that a press is one press. */
+const held = new Set<string>();
+function pads() {
+  let sx = 0, sy = 0;
+  for (const src of xr.session.inputSources) {
+    const g = src.gamepad;
+    if (!g) continue;
+    sx += g.axes[2] || 0;
+    sy += g.axes[3] || 0;
+    for (const [i, k] of [[0, 'Space'], [4, 'Escape'], [5, fails > 2 ? 'Enter' : 'KeyR']] as [number, string][]) {
+      const id = src.handedness + i;
+      if (g.buttons[i]?.pressed) { if (!held.has(id)) pressed.add(k); held.add(id); } else held.delete(id);
+    }
+  }
+  stick.x = Math.abs(sx) > 0.25 ? sx : 0;
+  stick.y = Math.abs(sy) > 0.25 ? sy : 0;
+  // A flick of the stick up or down steps through the mission list, like on a phone.
+  const fl = sy > 0.6 ? 'ArrowDown' : sy < -0.6 ? 'ArrowUp' : '';
+  if (fl && !held.has('f')) pressed.add(fl);
+  fl ? held.add('f') : held.delete('f');
+}
+
 export function update(dt: number) {
+  if (xr.session) pads();
   t += dt;
   touch();
   // Puffs age in every phase: what is in the air keeps rising through the "!" hold and
@@ -729,27 +771,74 @@ function drawHunter(h: Hunter.Hunter) {
   }
 }
 
-export function draw() {
-  view(cameraView, cam.x, cam.y, cam.z, cam.yaw, cam.pitch);
-  multiply(vp, proj, cameraView);
+function vrText() {
+  const bar = mid.querySelector('.b')?.textContent;
+  const key = top.innerText + mid.innerText + low.innerText + bar;
+  if (key === hudKey) return;
+  hudKey = key;
+  tx.clearRect(0, 0, 1024, 640);
+  tx.textAlign = 'center';
+  const lines = (t: string, y: number, size: number) => {
+    tx.font = 'bold ' + size + 'px ui-monospace,Consolas,monospace';
+    for (const l of t.split('\n')) {
+      tx.fillStyle = '#fff5fb';
+      if (l && l === bar) { tx.fillStyle = '#ff3fb0'; tx.fillRect(312, y - size, 400, size * 1.3); tx.fillStyle = '#2a0730'; }
+      tx.fillText(l, 512, y);
+      y += size * 1.3;
+    }
+  };
+  lines(top.innerText, 36, 24);
+  lines(mid.innerText, 120, 34);
+  lines(low.innerText, 555, 26);
+  text(tc);
+}
 
+const eyeM = mat();
+const roomM = mat();
+export function draw() {
   const bg = drain(0.42, 0.2, 0.5, grey);
-  frame(vp, cam.x, cam.y, cam.z, bg[0], bg[1], bg[2]);
-  setDark(999, 999, 1, grey, cam.x, cam.z);
+  const pose = xr.frame && xr.space && xr.frame.getViewerPose(xr.space);
+  const layer = pose && xr.session.renderState.baseLayer;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, pose ? layer.framebuffer : null);
+  clear(bg[0], bg[1], bg[2]);
+  if (!pose) {
+    view(cameraView, cam.x, cam.y, cam.z, cam.yaw, cam.pitch);
+    multiply(vp, proj, cameraView);
+    setVP(vp, cam.x, cam.y, cam.z);
+    scene(cam.x, cam.z);
+    return;
+  }
+  // Once per eye: the headset's view and projection, behind the room placement that
+  // shrinks the world to a table top. The eye is handed back to the game in tiles.
+  place(roomM, xr.x, xr.y, xr.z, 0, 0, xr.k);
+  for (const v of pose.views) {
+    const o = layer.getViewport(v);
+    gl.viewport(o.x, o.y, o.width, o.height);
+    multiply(eyeM, v.transform.inverse.matrix, roomM);
+    multiply(vp, v.projectionMatrix, eyeM);
+    const q = v.transform.position;
+    const ex = (q.x - xr.x) / xr.k, ey = (q.y - xr.y) / xr.k, ez = (q.z - xr.z) / xr.k;
+    setVP(vp, ex, ey, ez);
+    scene(ex, ez);
+  }
+}
+
+function scene(ex: number, ez: number) {
+  setDark(999, 999, 1, grey, ex, ez);
 
   // The sky: a care-bear sky, on purpose. The platform hangs in it, and the whole thing
   // drains along with everything else when the hunters have taken enough. Its pink
   // breathes over a minute and a half — too slow to see happen, enough that it is alive.
   // Drawn first, from a dome that follows the camera so it can never be reached.
   setSky(true, 1, 0.72 + Math.sin(t * 0.07) * 0.05, 0.88);
-  place(tmpM, cam.x, 0, cam.z, 0, 0);
+  place(tmpM, ex, 0, ez, 0, 0);
   drawMesh(skyMesh, tmpM, 0.42, 0.2, 0.52);
   setSky(false);
   // Nine clouds at three distances and four heights, drifting once round the platform
   // in about ten minutes and riding a slow swell: no two missions open on the same sky.
   for (let k = 0; k < 9; k++) {
     const a = (k / 9) * Math.PI * 2 + 0.7 + t * 0.01;
-    const r = 26 + (k % 3) * 9;
+    const r = (26 + (k % 3) * 9) * (xr.session ? 2 : 1); // further out in a headset: they would brush the face
     place(tmpM, Math.cos(a) * r, 5 + (k % 4) * 4.5 + Math.sin(t * 0.3 + k) * 0.6, Math.sin(a) * r, 0, -a, 2.6);
     drawMesh(cloudMesh, tmpM, 1, 0.97, 1);
   }
@@ -878,4 +967,14 @@ export function draw() {
   // The title's rainbow stands behind the far edge of the platform, the one time the
   // camera is low enough to see a whole one.
   if (phase === 'title' || phase === 'menu') arch(0, -16, -0.3, 0.85, false); // fixed: the camera looks at the origin here
+  // In a headset the page's words hang over the far edge of the platform, tilted to the eye.
+  if (xr.session) {
+    vrText();
+    setText(true);
+    setBlend(true);
+    place(tmpM, 0, 11, -bounds.z - 4, -0.5, 0, 30);
+    drawMesh(textMesh, tmpM, 1, 1, 1);
+    setBlend(false);
+    setText(false);
+  }
 }

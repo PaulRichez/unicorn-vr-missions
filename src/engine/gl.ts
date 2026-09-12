@@ -15,9 +15,11 @@ uniform mat4 uM;
 out vec3 vN;
 out vec3 vP;
 out float vL;
+out vec2 vU;
 void main(){
   vec4 w = uM * vec4(p, 1.);
   vP = w.xyz;
+  vU = p.xy;
   vN = mat3(uM) * n;
   vL = p.y;
   gl_Position = uV * w;
@@ -54,6 +56,8 @@ precision highp float;
 in vec3 vN;
 in vec3 vP;
 in float vL;
+in vec2 vU;
+uniform sampler2D uX;
 uniform vec3 uE;
 uniform vec3 uC;
 uniform float uI;
@@ -73,6 +77,11 @@ vec3 hsv(float h, float s, float v){
 }
 
 void main(){
+  if (uK > 1.5) {
+    vec4 t = texture(uX, vec2(vU.x + .5, .5 - vU.y * 1.6));
+    o = vec4(mix(t.rgb, vec3(dot(t.rgb, vec3(.3, .59, .11))), uG), t.a);
+    return;
+  }
   if (uK > .5) {
     vec3 d = normalize(vP - vec3(uE.x, 0., uE.z));
     vec3 s = mix(uC, uS, clamp(d.y * 1.2 + .44, 0., 1.));
@@ -139,6 +148,17 @@ const uK = gl.getUniformLocation(program, 'uK');
 export function setSky(on: boolean, r = 0, g = 0, b = 0) {
   gl.uniform1f(uK, on ? 1 : 0);
   if (on) gl.uniform3f(uS, r, g, b);
+}
+
+// The one texture: the page's text, drawn into a canvas, for the headset where the page
+// itself cannot be seen. A panel of 1 by 0.625 maps it edge to edge (see the shader).
+gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+export function text(c: HTMLCanvasElement) {
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+}
+export function setText(on: boolean) {
+  gl.uniform1f(uK, on ? 2 : 0);
 }
 
 gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -211,10 +231,9 @@ export function setVP(vp: M4, ex: number, ey: number, ez: number) {
  * The sky is the clear colour: outdoors it fills half the screen, so it is set from the
  * game rather than fixed here — it has to drain along with everything else.
  */
-export function frame(vp: M4, ex: number, ey: number, ez: number, r: number, g: number, b: number) {
+export function clear(r: number, g: number, b: number) {
   gl.clearColor(r, g, b, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  setVP(vp, ex, ey, ez);
 }
 
 export function draw(m: Mesh, model: M4, r: number, g: number, b: number, irid = 0, alpha = 1) {

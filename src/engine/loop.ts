@@ -2,6 +2,8 @@
 // display refresh rate. Without this, a 144 Hz screen plays a different game than a 60 Hz
 // one.
 
+import { xr } from './xr';
+
 const STEP = 1 / 60;
 /** Past this, drop the lost time rather than catching up in a hundred iterations. */
 const MAX_CATCHUP = 0.25;
@@ -15,8 +17,11 @@ export function loop(update: (dt: number) => void, draw: (alpha: number, stepped
   let last = performance.now() / 1000;
   let acc = 0;
 
-  const frame = (ms: number) => {
-    requestAnimationFrame(frame);
+  const frame = (ms: number, xf?: any) => {
+    // A headset frame arriving after its session ended: the window loop has taken over.
+    if (xf && !xr.session) return;
+    (xr.session || window).requestAnimationFrame(frame);
+    xr.frame = xf || null;
     const now = ms / 1000;
     acc = Math.min(acc + now - last, MAX_CATCHUP);
     last = now;
@@ -31,4 +36,5 @@ export function loop(update: (dt: number) => void, draw: (alpha: number, stepped
   };
 
   requestAnimationFrame(frame);
+  return () => requestAnimationFrame(frame);
 }
