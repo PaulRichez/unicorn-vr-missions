@@ -9,32 +9,30 @@ const STEP = 1 / 60;
 const MAX_CATCHUP = 0.25;
 
 /**
- * `draw` receives `stepped`: whether this frame ran at least one simulation step.
- * Above 60 Hz many frames run none, and anything that consumes per-frame state must
- * wait for a step rather than run on every repaint.
+ * Frames come from the window, or from the headset session while one runs. The two never
+ * mix: a frame from the wrong source is dropped, and `kick` (returned) starts the chain
+ * on whichever source is current — called when a session begins and when it ends, since
+ * a page in a headset may never get another window frame to hand over from.
  */
-export function loop(update: (dt: number) => void, draw: (alpha: number, stepped: boolean) => void) {
+export function loop(update: (dt: number) => void, draw: () => void) {
   let last = performance.now() / 1000;
   let acc = 0;
 
   const frame = (ms: number, xf?: any) => {
-    // A headset frame arriving after its session ended: the window loop has taken over.
-    if (xf && !xr.session) return;
+    if (!!xf !== !!xr.session) return;
     (xr.session || window).requestAnimationFrame(frame);
     xr.frame = xf || null;
     const now = ms / 1000;
     acc = Math.min(acc + now - last, MAX_CATCHUP);
     last = now;
-    let stepped = false;
     while (acc >= STEP) {
       update(STEP);
       acc -= STEP;
-      stepped = true;
     }
-    // alpha = position between the last two steps, for interpolated rendering.
-    draw(acc / STEP, stepped);
+    draw();
   };
 
-  requestAnimationFrame(frame);
-  return () => requestAnimationFrame(frame);
+  const kick = () => (xr.session || window).requestAnimationFrame(frame);
+  kick();
+  return kick;
 }

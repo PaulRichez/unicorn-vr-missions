@@ -53,8 +53,3 @@ addEventListener('blur', () => {
   if (activeId !== null) release();
 });
 
-/** Call once per frame, after update: clears the "this frame only" state. */
-export function flush() {
-  pointer.up = false;
-  pressed.clear();
-}

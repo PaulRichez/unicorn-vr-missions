@@ -292,20 +292,14 @@ export const at = (i: number, j: number) =>
   i < 0 || j < 0 || i >= COLS || j >= ROWS ? ' ' : MAP[j][i] ?? ' ';
 
 /** Nothing to stand on: off the platform, or a wall. */
-export const isSolid = (i: number, j: number) => {
-  const c = at(i, j);
-  return c === ' ' || c === '#' || c === '=';
-};
+export const isSolid = (i: number, j: number) => ' #='.includes(at(i, j));
 /** Only walls stop a gaze — you can see straight across a gap in the platform. */
-export const blocksSight = (i: number, j: number) => at(i, j) === '#' || at(i, j) === '-';
+export const blocksSight = (i: number, j: number) => '#-'.includes(at(i, j));
 
 /**
- * Solid under any corner of an oriented rectangle: long down the animal's spine, narrow
- * across it. A square would be both too wide — catching on nothing in a corridor — and
- * too short to keep the nose out of a wall, since a unicorn is about three times longer
- * than it is broad.
- *
- * Facing follows the movement convention: forward is (sin yaw, -cos yaw) on the floor.
+ * Solid under any corner of a square box centred on (x, z): the barrel of the animal. The
+ * oriented part of the fit, nose and rump along the body's axis, is game.ts's nose/tail
+ * push, where forward is (sin yaw, -cos yaw) on the floor.
  */
 export function solidBox(x: number, z: number, half: number) {
   for (const a of [half, -half]) {

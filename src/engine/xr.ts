@@ -14,15 +14,15 @@ export const xr = {
    * near edge of every platform is a hand's reach in front of the player (see draw). */
   k: 0.05,
   z: 0,
-  /** Set by main: the window loop and the viewport take over when the session ends. */
-  onEnd: () => {},
+  /** Set by main: called when a session begins and when it ends (see loop.ts). */
+  onFlip: () => {},
 };
 
 /** Whether a headset can be entered from this page. Asked once the boot log is over, not
  * at load, and navigator.xr read fresh then: an emulator extension installs its runtime
  * a moment after the page's own script ran, replacing the browser's object. */
 export let xrOK = false;
-export const xrCheck = () => (navigator as any).xr?.isSessionSupported('immersive-vr').then((ok: boolean) => { xrOK = ok; });
+export const xrCheck = () => (navigator as any).xr?.isSessionSupported('immersive-vr').then((ok: boolean) => { xrOK = ok; }, () => {});
 
 /** Must be called from a click: a session needs a gesture the way sound does. */
 export function enterVR() {
@@ -30,10 +30,11 @@ export function enterVR() {
     await (gl as any).makeXRCompatible();
     s.updateRenderState({ baseLayer: new (self as any).XRWebGLLayer(s, gl) });
     xr.space = await s.requestReferenceSpace('local-floor');
-    s.onend = () => { xr.session = xr.frame = null; xr.onEnd(); };
+    s.onend = () => { xr.session = xr.frame = null; xr.onFlip(); };
     // A select with no gamepad behind it — a tap on a phone in a Cardboard, a pinch of a
     // tracked hand — is the trigger too.
     s.onselect = (e: any) => { if (!e.inputSource.gamepad) pressed.add('Space'); };
     xr.session = s;
-  });
+    xr.onFlip();
+  }).catch(() => {}); // refused (runtime asleep, a second click): the button simply stays
 }

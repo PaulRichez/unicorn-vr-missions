@@ -91,6 +91,10 @@ function shrinkGlsl(js) {
   return js.replace(/"#version 300 es(?:[^"\\]|\\.)*"/g, (glsl) =>
     glsl
       .replace(/\\n +/g, '\\n')
+      // Every statement ends in ; or a brace: only the #version line needs its newline.
+      .replace(/#version 300 es\\n/g, '\u00a7')
+      .replace(/\\n/g, '')
+      .replace(/\u00a7/g, '#version 300 es\\n')
       .replace(/ ([=+\-*\/,<>?:]) /g, '$1')
       .replace(/([,;{}()]) /g, '$1')
       .replace(/ ([{}()])/g, '$1'),

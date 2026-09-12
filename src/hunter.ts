@@ -248,7 +248,7 @@ function lookOne(h: Hunter) {
   for (let j = 0; j < ROWS; j++) {
     for (let i = 0; i < COLS; i++) {
       const c = at(i, j);
-      if (c === '#' || c === ' ' || c === '-') continue;
+      if ('# -'.includes(c)) continue;
       const dx = i - hi;
       const dj = j - hj;
       const dist = Math.hypot(dx, dj);

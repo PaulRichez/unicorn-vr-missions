@@ -1,19 +1,14 @@
 // Entry point: wires the engine to the game, nothing more.
 
 import { onResized } from './engine/view';
-import { flush } from './engine/input';
 import { loop } from './engine/loop';
+import { stick } from './engine/camera';
 import { update, draw, resize } from './game';
 import { xr } from './engine/xr';
 
 onResized(resize);
 
-const kick = loop(update, (_alpha, stepped) => {
-  draw();
-  // Clear the "this frame only" state after the steps, not inside update: one frame can
-  // consume several steps and a click has to stay visible to all of them. Only clear it
-  // when a step actually ran — above 60 Hz many frames run none, and flushing there would
-  // drop clicks that no update ever saw.
-  if (stepped) flush();
-});
-xr.onEnd = () => { resize(); kick(); };
+const kick = loop(update, draw);
+// A session begins or ends: the loop moves to the other frame source, the page gets its
+// viewport back, and a thumbstick left pushed in the headset does not walk the flat game.
+xr.onFlip = () => { stick.x = stick.y = 0; resize(); kick(); };

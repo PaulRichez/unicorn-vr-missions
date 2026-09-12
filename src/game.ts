@@ -97,7 +97,7 @@ ui.style.cssText =
 ui.innerHTML =
   // The bar's negative margin keeps its text on the column with the lines above and below;
   // the cursor sits outside the bar, in the margin, so the column never shifts under it.
-  '<style>.b{background:#ff3fb0;color:#2a0730;padding:0 .6em;margin:0 -.6em;position:relative}' +
+  '<style>*{margin:0;padding:0}html,body{height:100%;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}canvas{display:block;width:100%;height:100%}.v{transform:rotate(90deg) translateY(-100%);transform-origin:0 0;width:100vh;height:100vw;width:100dvh;height:100dvw}.b{background:#ff3fb0;color:#2a0730;padding:0 .6em;margin:0 -.6em;position:relative}' +
   '.c:before{content:"▶";position:absolute;right:100%;margin-right:.5em}' +
   // A dark backing behind the border, so a boxed line stays readable over a pink floor
   // or a white cloud instead of dissolving into whatever the camera happens to be over.
@@ -177,7 +177,7 @@ pad.addEventListener('pointermove', (e) => {
   knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
   stick.x = m > 0.25 ? dx / 45 : 0;
   stick.y = m > 0.25 ? dy / 45 : 0;
-  if (Math.abs(dy) > 25) sk.fy = dy;
+  sk.fy = Math.abs(dy) > 25 ? dy : 0;
 });
 pad.onpointerup = pad.onpointercancel = (e) => {
   if (e.pointerId !== sk.id) return;
@@ -263,10 +263,6 @@ let downT = -1;
 let stride = 0;
 let gait = 0;
 
-const drain = (r: number, g: number, b: number, k: number): [number, number, number] => {
-  const l = r * 0.3 + g * 0.59 + b * 0.11;
-  return [r + (l - r) * k, g + (l - g) * k, b + (l - b) * k];
-};
 
 const hsv = (h: number, s: number, v: number): [number, number, number] => {
   const f = (n: number) => {
@@ -297,7 +293,7 @@ function reset(caught: boolean) {
   opened = !gems.length;
   // Every attempt at a level plays out the same way — a patrol you can learn is the
   // whole point of a patrol — so the colours taken this attempt go back on the floor.
-  for (const g of gems) if (g.taken) { g.taken = false; bands--; }
+  for (const g of gems) if (g.taken && phase !== 'won') { g.taken = false; bands--; }
   gasCool = 0;
   caughtT = 0;
   stride = gait = player.speed = 0;
@@ -452,7 +448,7 @@ function hud() {
           line('<div class=s><br>' +
             (!grey ? 'PERFECT RUN · NO ONE EVER SAW YOU' : grey === 1 ? 'THE COLOUR IS GONE.<br>LIFE IS NOT A FAIRY TALE.' : '') +
             '</div>');
-    l = phaseT > 3 && !COARSE ? 'SPACE · AGAIN' : '';
+    l = phaseT > 3 ? (kb ? 'SPACE · AGAIN' : xr.session ? 'PULL THE TRIGGER' : '') : '';
   }
   set(mid, m);
   set(low, l);
@@ -490,6 +486,7 @@ export function update(dt: number) {
   // over the cleared-mission table, when the rest of the world stands still.
   gas = gas.filter((g) => (g.age += dt) < g.life);
   flash -= dt * 3;
+  gasCool -= dt;
   if (pressed.has('KeyM') || pressed.has('Semicolon')) toggleMute();
   const go = pressed.has('Space') || pressed.has('Enter');
 
@@ -519,8 +516,9 @@ export function update(dt: number) {
     follow(dt);
     if (go && phaseT > 3) { restart(); phase = 'title'; }
   } else if (pressed.has('Escape')) {
-    // Out of a mission and back to the list, whatever the mission was doing.
-    reset(false);
+    // Out of a mission and back to the list, whatever the mission was doing — a sighting
+    // still being shown is still paid for.
+    reset(caughtT > 0 && !timeUp);
     cursor = level;
     phase = 'menu';
     downT = 0;
@@ -562,7 +560,6 @@ function play(dt: number) {
 
   // Space: the unicorn farts. Snake knocked on walls; this is the same trick, and the
   // noise carries through walls the way sound does. Any hunter in earshot comes to look.
-  gasCool -= dt;
   if (pressed.has('Space') && gasCool <= 0) {
     gasCool = 3; // one trick at a time: a lure is a decision, not a machine gun
     const fx = Math.sin(player.yaw), fz = -Math.cos(player.yaw);
@@ -786,11 +783,10 @@ function vrText() {
 const eyeM = mat();
 const roomM = mat();
 export function draw() {
-  const bg = drain(0.42, 0.2, 0.5, grey);
   const pose = xr.frame && xr.space && xr.frame.getViewerPose(xr.space);
   const layer = pose && xr.session.renderState.baseLayer;
   gl.bindFramebuffer(gl.FRAMEBUFFER, pose ? layer.framebuffer : null);
-  clear(bg[0], bg[1], bg[2]);
+  clear();
   if (!pose) {
     view(cameraView, cam.x, cam.y, cam.z, cam.pitch);
     multiply(vp, proj, cameraView);
@@ -852,7 +848,7 @@ function scene(ex: number, ez: number) {
   // taken down the same way when the mission is over — the VR grid drawing itself in.
   const moving = bootT < 1.9 || downT >= 0;
   const n = scenery.length + 1;
-  const lifted = (p: { mesh: Mesh; model: M4; rgb: [number, number, number] }, k: number) => {
+  const lifted = (p: { mesh: Mesh; model: M4; rgb: [number, number, number] }, k: number, a = 1) => {
     let m = p.model;
     if (moving) {
       const delay = (k / n) * 1.3;
@@ -862,15 +858,15 @@ function scene(ex: number, ez: number) {
       m = tmpM;
       m[13] -= Math.max(1 - up * (2 - up), down * down) * 9;
     }
-    drawMesh(p.mesh, m, p.rgb[0], p.rgb[1], p.rgb[2]);
+    drawMesh(p.mesh, m, p.rgb[0], p.rgb[1], p.rgb[2], 0, a);
   };
-  scenery.forEach(lifted);
+  scenery.forEach((p, i) => lifted(p, i));
   // Nothing stands on a platform that is not there yet: what lives on the floor waits for
   // the last tile, and goes when the first one sinks.
   const built = bootT >= 1.9 && downT < 0;
   if (!built) {
     setBlend(true);
-    for (const p of roofs) lifted(p, n - 1);
+    for (const p of roofs) lifted(p, n - 1, 0.55);
     setBlend(false);
     if (phase === 'title' || phase === 'menu') arch(0, -16, -0.3, 0.85, false);
     return;
@@ -959,7 +955,7 @@ function scene(ex: number, ez: number) {
   // The hedge roofs last and see-through: the unicorn shows under them to the player,
   // while to the hunters what is under a hedge does not exist.
   setBlend(true);
-  for (const p of roofs) lifted(p, n - 1);
+  for (const p of roofs) lifted(p, n - 1, 0.55);
   setBlend(false);
 
   // The ending: an arch the horn draws over the platform, opening over three seconds,
