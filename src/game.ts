@@ -8,7 +8,7 @@
 import { W, H, DPR } from './engine/view';
 import { gl, mesh, frame, draw as drawMesh, setBands, setDark, setBlend, setSky, setFade, type Mesh } from './engine/gl';
 import { mat, perspective, view, multiply, place, partAt, type M4 } from './engine/mat';
-import { cam, player, update as moveRig, follow } from './engine/camera';
+import { cam, player, bounds, update as moveRig, follow } from './engine/camera';
 import { sfx, toggleMute, isMuted } from './engine/audio';
 import { pressed, keys, pointer } from './engine/input';
 import { puff, dome, panel, ring, mark, arc, prismSolid, join, shift, keyShape, note } from './mesh';
@@ -227,6 +227,8 @@ function reset(caught: boolean) {
   player.x = safe.x = wx(spawn.i);
   player.z = safe.z = wz(spawn.j);
   player.yaw = 0;
+  bounds.x = (COLS * TILE) / 2;
+  bounds.z = (ROWS * TILE) / 2;
   gas = [];
   marks.length = 0;
   ringAge = -1;

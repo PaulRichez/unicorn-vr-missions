@@ -4,6 +4,7 @@
 // control on a touchscreen but the unicorn.
 
 import { keys } from './input';
+import { W, H } from './view';
 
 /** The unicorn on the floor: where it stands and which way it faces. */
 export const player = { x: 0, z: 0, yaw: 0, speed: 0 };
@@ -18,16 +19,26 @@ export const player = { x: 0, z: 0, yaw: 0, speed: 0 };
  * press to a wall, low when you crawl. Worth stealing later; this is the default one.
  */
 export const cam = { x: 0, y: 10, z: 12, yaw: 0, pitch: -1.12, dist: 26 };
+/** Half the platform's extent, set when a level loads: the shot never leaves it. */
+export const bounds = { x: 0, z: 0 };
 
 const SPEED = 3.6;
 const TURN = 7;
 const LAG = 5; // how eagerly the shot catches up; low enough to feel carried, not welded
 
 export function follow(dt: number, snap = false) {
+  // The camera aims at the unicorn, but no further out than the platform's edge minus
+  // half of what the screen shows of the floor — so a small level sits centred and a big
+  // one scrolls until its edge reaches the edge of the screen, never beyond into the void.
+  // The half-widths are what this pitch and distance frame, scaled by the aspect ratio.
+  // (W / H is 0 / 0 during module setup, before the first resize: hence the fallback.)
+  const vx = cam.dist * 0.41 * (W / H || 1.6), vz = cam.dist * 0.37;
+  const ax = Math.max(0, bounds.x - vx), az = Math.max(0, bounds.z - vz);
+  const px = Math.max(-ax, Math.min(ax, player.x)), pz = Math.max(-az, Math.min(az, player.z));
   const cp = Math.cos(cam.pitch);
-  const tx = player.x - Math.sin(cam.yaw) * cp * cam.dist;
+  const tx = px - Math.sin(cam.yaw) * cp * cam.dist;
   const ty = -Math.sin(cam.pitch) * cam.dist;
-  const tz = player.z + Math.cos(cam.yaw) * cp * cam.dist;
+  const tz = pz + Math.cos(cam.yaw) * cp * cam.dist;
   const k = snap ? 1 : Math.min(1, dt * LAG);
   cam.x += (tx - cam.x) * k;
   cam.y += (ty - cam.y) * k;
