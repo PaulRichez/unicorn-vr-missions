@@ -153,8 +153,10 @@ const set = (el: HTMLElement, s: string) => { if (el.dataset.h !== s) el.innerHT
 /** One line of a screen that builds itself up: the i-th fades in after the others. */
 const line = (s: string, i: number) => '<div class=f style="animation-delay:' + i * 0.6 + 's">' + s + '</div>';
 
-/** A touchscreen, most likely — the hints change, the rules do not. */
-const COARSE = matchMedia('(pointer:coarse)').matches;
+/** A touchscreen, most likely: a first guess from the media query, settled by the first
+ *  pointer that actually arrives — the hints and the pad change, the rules do not. */
+let COARSE = matchMedia('(pointer:coarse)').matches;
+addEventListener('pointerdown', (e) => { COARSE = e.pointerType === 'touch'; }, true);
 
 // --- touch: drag anywhere to move, tap to fart or confirm, the corners for the rest ---
 const drag = { x: 0, y: 0, moved: false };
@@ -365,7 +367,10 @@ function hud() {
       (COARSE && inPlay ? '\n' + box : ''));
   pad.hidden = fart.hidden = !COARSE || phase === 'boot';
   // The button fills back up while the next fart is not ready yet.
-  if (COARSE) fart.style.background = gasCool > 0 ? 'linear-gradient(0deg,#ff3fb0 ' + (100 - (gasCool / 3) * 100) + '%,#2a073088 0)' : '';
+  if (COARSE) {
+    fart.style.background = gasCool > 0 ? 'linear-gradient(0deg,#ff3fb0 ' + (100 - (gasCool / 3) * 100) + '%,#2a073088 0)' : '';
+    fart.style.opacity = gasCool > 0 ? '.6' : '';
+  }
   let m = '';
   let l = '';
 
