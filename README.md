@@ -117,7 +117,7 @@ or void.
 
 ## Licence
 
-Game licence to be decided before submission.
+[MIT](LICENSE).
 
 Third-party code shipped: **ZzFX** (ZzFXMicro v1.3.2) by Frank Force, MIT licensed — full
 text in [src/vendor/zzfx.LICENSE](src/vendor/zzfx.LICENSE), copyright notice preserved at
