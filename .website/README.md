@@ -25,10 +25,15 @@ platforms, hunters on fixed rounds, a time limit, and no weapon but a rainbow fa
 - Touch: a stick to move (flick up or down in the list), one big button that says what it
   does, and the boxes on screen are buttons (menu, mute, restart). Always landscape: a phone
   held upright gets the page turned, nothing to rotate.
+- Headset (WebXR, no library): press ENTER VR. The platform becomes a diorama on a table in
+  front of you; the head is the camera, lean in to see behind a wall. A thumbstick walks the
+  unicorn, the trigger farts or confirms, A/X goes back to the list, B/Y restarts. You never
+  move, so nothing can make you sick.
 
 **Under the hood**
 
 WebGL2 with a single shader, low-poly meshes built in code, ZzFX for sound, levels written
-as strings. An exact solver (breadth-first search over tile × time × keys) proves every
+as strings; the same renderer draws once per eye for WebXR, with the page's text painted
+into a texture. An exact solver (breadth-first search over tile × time × keys) proves every
 mission and sets its target time. Built with esbuild, terser, Roadroller and ECT; the zip
-weighs 12 946 bytes.
+weighs 13 113 bytes.
