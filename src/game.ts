@@ -366,9 +366,9 @@ function hud() {
       (phase === 'play' ? (level < 2 && !COARSE ? '\nSPACE · FART   ESC · MENU' : '') + (fails > 2 ? (COARSE ? '\nTHE CLOCK · SKIP' : '\nENTER · SKIP') : '') : '') +
       (COARSE && inPlay ? '\n' + box : ''));
   pad.hidden = fart.hidden = !COARSE || phase === 'boot';
-  // The button fills back up while the next fart is not ready yet.
+  // The pink of the press drains out of the button until the next fart is ready.
   if (COARSE) {
-    fart.style.background = gasCool > 0 ? 'linear-gradient(0deg,#ff3fb0 ' + (100 - (gasCool / 3) * 100) + '%,#2a073088 0)' : '';
+    fart.style.background = gasCool > 0 ? 'linear-gradient(0deg,#ff3fb0 ' + (gasCool / 3) * 100 + '%,#2a073088 0)' : '';
     fart.style.opacity = gasCool > 0 ? '.6' : '';
   }
   let m = '';
