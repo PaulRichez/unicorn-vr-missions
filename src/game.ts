@@ -97,6 +97,8 @@ ui.innerHTML =
   '.j{position:fixed;bottom:18px;display:grid;grid-template:repeat(3,58px)/repeat(3,58px);gap:5px;left:18px}' +
   '.j b,.z{display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid #fbd9;background:#2a073088;border-radius:.4em;pointer-events:auto;touch-action:none}' +
   '.z{position:fixed;right:22px;bottom:30px;width:96px;height:96px;border-radius:50%;font-size:40px}' +
+  // Pressing shows: the button shrinks a touch and goes full pink for as long as it is held.
+  '.x:active,.j b:active,.z:active{transform:scale(.92);background:#ff3fb0!important;color:#2a0730}' +
   '.o{-webkit-text-stroke:1px #ff4fa0;color:transparent;font-style:italic}' +
   '.s{font-size:16px;letter-spacing:.14em;line-height:1.6}.w{letter-spacing:.6em}.d{opacity:.35}.r{color:#ff3b6b}' +
   // A table is a left-aligned block that still sits in the middle of the screen: the
@@ -143,6 +145,8 @@ for (const ev of ['pointerup', 'pointercancel']) ui.addEventListener(ev, (e) => 
   if (el) keys.delete(el.dataset.h!);
 });
 fart.dataset.p = 'Space';
+// iOS only paints :active on elements with a touch listener somewhere above them.
+ui.addEventListener('touchstart', () => {});
 
 /** Writes only on change: rewriting the same HTML every frame would restart its animations. */
 const set = (el: HTMLElement, s: string) => { if (el.dataset.h !== s) el.innerHTML = el.dataset.h = s; };
