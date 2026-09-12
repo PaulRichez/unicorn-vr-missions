@@ -10,7 +10,7 @@ import { gl, mesh, frame, draw as drawMesh, setBands, setDark, setBlend, setSky,
 import { mat, perspective, view, multiply, place, partAt, type M4 } from './engine/mat';
 import { cam, player, update as moveRig, follow } from './engine/camera';
 import { sfx, toggleMute, isMuted } from './engine/audio';
-import { pressed } from './engine/input';
+import { pressed, keys, pointer } from './engine/input';
 import { puff, dome, panel, ring, mark, arc, prismSolid, join, shift } from './mesh';
 import { buildParts, PALETTE, SCALE, LEGS, HOOVES, HORN } from './unicorn';
 import * as Hunter from './hunter';
@@ -119,6 +119,35 @@ document.body.appendChild(ui);
 const set = (el: HTMLElement, s: string) => { if (el.dataset.h !== s) el.innerHTML = el.dataset.h = s; };
 /** One line of a screen that builds itself up: the i-th fades in after the others. */
 const line = (s: string, i: number) => '<div class=f style="animation-delay:' + i * 0.6 + 's">' + s + '</div>';
+
+/** A touchscreen, most likely — the hints change, the rules do not. */
+const COARSE = matchMedia('(pointer:coarse)').matches;
+
+// --- touch: drag anywhere to move, tap to fart or confirm, the corners for the rest ---
+const drag = { x: 0, y: 0, moved: false };
+const FINGER = ['TU', 'TD', 'TL', 'TR'];
+function touch() {
+  if (pointer.hit) { drag.x = pointer.x; drag.y = pointer.y; drag.moved = false; }
+  for (const k of FINGER) keys.delete(k);
+  const dx = pointer.x - drag.x, dy = pointer.y - drag.y;
+  const d = Math.hypot(dx, dy);
+  if (pointer.down && d > 18) {
+    // Eight ways from the point the finger landed, like a stick with no centre spring.
+    drag.moved = true;
+    if (dy < -d * 0.38) keys.add('TU');
+    if (dy > d * 0.38) keys.add('TD');
+    if (dx < -d * 0.38) keys.add('TL');
+    if (dx > d * 0.38) keys.add('TR');
+  }
+  if (pointer.up) {
+    if (drag.moved) { if (Math.abs(dy) > Math.abs(dx)) pressed.add(dy < 0 ? 'ArrowUp' : 'ArrowDown'); }
+    else if (pointer.y < 70 && pointer.x < 170) pressed.add('Escape');
+    else if (pointer.y < 70 && pointer.x > W - 130) pressed.add('KeyM');
+    else if (pointer.y > H - 80 && Math.abs(pointer.x - W / 2) < 120) pressed.add(fails > 2 ? 'Enter' : 'KeyR');
+    else pressed.add('Space');
+  }
+  pointer.hit = pointer.up = false; // consumed by this step, not by the next one too
+}
 
 const two = (n: number) => (n < 10 ? '0' : '') + n;
 /** mm:ss.c — the format of the LIMIT / TIME box every VR mission ran under. */
@@ -274,10 +303,10 @@ function hud() {
   ui.style.filter = 'saturate(' + (1 - grey) + ')';
   const n = two(level + 1);
   const p = cleared();
-  set(pct, phase === 'boot' ? '' : '<span class=x>' + Math.round((p / N) * 100) + ' %</span>');
+  set(pct, phase === 'boot' ? '' : '<span class=x>' + (isMuted() ? '\u{1F507}' : '\u{1F50A}') + '  ' + Math.round((p / N) * 100) + ' %</span>');
   set(top, phase === 'boot' || phase === 'title' || phase === 'menu' || phase === 'end' ? ''
-    : '<span class=x>MISSION ' + n + (isMuted() ? ' · MUTED' : '') + '</span>' +
-      (phase === 'play' ? (level < 2 ? '\nSPACE · FART   ESC · MENU' : '') + (fails > 2 ? '\nENTER · SKIP' : '') : ''));
+    : '<span class=x>\u2630  MISSION ' + n + '</span>' +
+      (phase === 'play' ? (level < 2 ? (COARSE ? '\nDRAG · MOVE   TAP · FART' : '\nSPACE · FART   ESC · MENU') : '') + (fails > 2 ? (COARSE ? '\nTAP THE CLOCK · SKIP' : '\nENTER · SKIP') : '') : ''));
   let m = '';
   let l = '';
 
@@ -291,8 +320,10 @@ function hud() {
     m =
       '<div class=f><div class=q>TACTICAL FLATULENCE ACTION</div><span class=w>' + NAME + '<br>MISSIONS</span>' +
       '<div class=q>NO ONE TAKES A UNICORN BY FORCE.<br>ONLY BY PATIENCE AND TRICKERY.</div>' +
-      '<div class="s r p">PRESS SPACE</div></div>';
-    l = 'ARROWS / WASD · MOVE      SPACE · FART      M · MUTE';
+      '<div class="s r p">' + (COARSE ? 'TAP TO START' : 'PRESS SPACE') + '</div></div>';
+    l = COARSE
+      ? 'DRAG · MOVE      TAP · FART      TOP CORNERS · MENU / MUTE'
+      : 'ARROWS / WASD · MOVE      SPACE · FART      M · MUTE';
   } else if (phase === 'menu') {
     // The original's list: vertical, looping, cursor held at the centre, a full bar on
     // the current line, [EXIT] at the bottom whether or not it has anything to do.
@@ -314,9 +345,9 @@ function hud() {
     l =
       caughtT > 0 && caughtT < 0.9
         ? 'TRY AGAIN'
-        : '<div class="x t"><span style="opacity:.6">LIMIT  ' + fmt(limit) +
+        : '<div class="x t"><span style="opacity:.6">\u21BB  LIMIT  ' + fmt(limit) +
           '</span>\n<span class="' + (limit - clock < 10 && (t * 4) % 1 < 0.5 ? 'r' : '') +
-          '">TIME   ' + fmt(clock) + '</span></div>';
+          '">   TIME   ' + fmt(clock) + '</span></div>';
   } else if (phase === 'won') {
     // The original's table of three times, filled in by the machine before you ran.
     m =
@@ -343,6 +374,7 @@ function hud() {
 
 export function update(dt: number) {
   t += dt;
+  touch();
   // Puffs age in every phase: what is in the air keeps rising through the "!" hold and
   // over the cleared-mission table, when the rest of the world stands still.
   gas = gas.filter((g) => (g.age += dt) < g.life);

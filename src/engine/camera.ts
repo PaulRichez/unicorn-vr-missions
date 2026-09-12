@@ -1,7 +1,7 @@
 // A fixed camera, the way Metal Gear did it: the player moves the character, never the
 // point of view. The angle is chosen once per level so the whole platform is readable,
 // which makes the tactical read a given rather than a skill — and leaves nothing to
-// control on a touchscreen.
+// control on a touchscreen but the unicorn.
 
 import { keys } from './input';
 
@@ -43,9 +43,10 @@ function turnToward(from: number, to: number, max: number) {
 
 /** Movement reads relative to the screen: up on the keys is away from the camera. */
 export function update(dt: number) {
-  const k = (a: string, b: string) => (keys.has(a) || keys.has(b) ? 1 : 0);
-  const f = k('KeyW', 'ArrowUp') - k('KeyS', 'ArrowDown');
-  const s = k('KeyD', 'ArrowRight') - k('KeyA', 'ArrowLeft');
+  // The third code of each is the finger: a drag on a touchscreen sets them (game.ts).
+  const k = (a: string, b: string, c: string) => (keys.has(a) || keys.has(b) || keys.has(c) ? 1 : 0);
+  const f = k('KeyW', 'ArrowUp', 'TU') - k('KeyS', 'ArrowDown', 'TD');
+  const s = k('KeyD', 'ArrowRight', 'TR') - k('KeyA', 'ArrowLeft', 'TL');
 
   player.speed = 0;
   if (!f && !s) return;

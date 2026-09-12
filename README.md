@@ -9,10 +9,12 @@ hunter can see are painted grey on the floor. Snake knocked on walls to pull a g
 farts a rainbow. Every sighting costs the mission and, for good, a little of the world's
 colour — the ending is a rainbow drawn through whatever colour you have left.
 
-- **Categories** — Desktop
+- **Categories** — Desktop + Mobile
 - **Budget** — 13,312 bytes, zipped
-- **Controls** — arrows / WASD move, Space farts, R restarts, M mutes, Enter skips a
-  mission after three failures
+- **Controls** — arrows / WASD move, Space farts, R restarts, M mutes, Escape returns to
+  the menu, Enter skips a mission after three failures. On a touchscreen: drag anywhere to
+  move, tap to fart or confirm, tap the mission box for the menu, the sound box to mute, the
+  clock to restart
 
 ## How it plays
 
