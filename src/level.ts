@@ -378,22 +378,22 @@ export function load(n: number): Part[] {
       // distance, quiet enough that the grey of a watched tile is the loudest thing on
       // the floor. In this game colour carries information, so decorating with it is
       // the same as lying.
-      // Special floors are told apart by what grows on them, not by a shade of pink:
-      // flowers on the flower tiles, white glitter on the green meadow, and the exit is
-      // a pale gold slab with the goal hovering over it.
+      // Special floors are told apart at a glance: a pale yellow slab with a note painted
+      // on it (game.ts) for the flowers, white glitter on the green meadow, and a pale gold
+      // slab for the exit, with the goal hovering over it.
       const warm = (i + j) % 2 === 0;
       const rgb: [number, number, number] =
         c === 'E' ? [1, 0.95, 0.72]
+        : c === ',' ? [1, 0.93, 0.6]
         : c === '~' ? [0.7, 0.92, 0.7]
         : warm ? [1, 0.72, 0.87] : [0.97, 0.66, 0.85];
       parts.push({ mesh: slab, model: place(mat(), x, -SLAB, z, 0, 0), rgb });
-      if (c === ',' || c === '~') {
-        const fl = c === ',';
+      if (c === '~') {
         for (let k = 0; k < 4; k++) {
           parts.push({
             mesh: puffMesh,
-            model: place(mat(), x + Math.cos(k * 1.7) * 0.8, fl ? 0.2 : 0.05, z + Math.sin(k * 1.7) * 0.8, 0, k, fl ? 0.36 : 0.15),
-            rgb: !fl ? [1, 1, 1] : k % 2 ? [1, 0.4, 0.6] : [1, 0.85, 0.3],
+            model: place(mat(), x + Math.cos(k * 1.7) * 0.8, 0.05, z + Math.sin(k * 1.7) * 0.8, 0, k, 0.15),
+            rgb: [1, 1, 1],
           });
         }
       }

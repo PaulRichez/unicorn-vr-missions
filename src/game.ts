@@ -724,17 +724,19 @@ export function draw() {
   for (const g of gems) {
     if (g.taken) continue;
     const [r, gg, b] = hsv(g.hue, 0.95, 1);
-    // Lying flat and turning in the plane of the floor: from a camera overhead, a flat
-    // shape stands out only when it faces up.
-    place(tmpM, wx(g.i), 0.35 + Math.sin(t * 2.2) * 0.1, wz(g.j), -Math.PI / 2, t * 0.8, 1.7);
-    drawMesh(keyMesh, tmpM, r, gg, b);
+    // Upright, turning on its own axis like anything worth picking up. The shape is
+    // flat, so it is drawn as a cross of two planes, both sides: never seen edge-on.
+    for (let f = 0; f < 4; f++) {
+      place(tmpM, wx(g.i), 0.4 + Math.sin(t * 2.2) * 0.1, wz(g.j), 0, t * 1.5 + (f * Math.PI) / 2, 1.5);
+      drawMesh(keyMesh, tmpM, r, gg, b);
+    }
   }
-  // A note hangs over every flower tile: what you will hear if you step there.
+  // A note painted on every flower tile: what you will hear if you step there.
   for (let j = 0; j < ROWS; j++) {
     for (let i = 0; i < COLS; i++) {
       if (at(i, j) !== ',') continue;
-      place(tmpM, wx(i), 1.5 + Math.sin(t * 3 + i + j) * 0.1, wz(j), cam.pitch, 0, 0.9);
-      drawMesh(noteMesh, tmpM, 1, 0.5, 0.75);
+      place(tmpM, wx(i), 0.07, wz(j) + 0.6, -Math.PI / 2, 0, 1.9);
+      drawMesh(noteMesh, tmpM, 0.85, 0.2, 0.5);
     }
   }
   // The goal turns over the exit, iridescent from red at its foot to violet at its tip —
