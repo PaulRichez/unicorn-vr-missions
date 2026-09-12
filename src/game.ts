@@ -104,7 +104,7 @@ ui.innerHTML =
   // Pressing shows: the button shrinks a touch and goes full pink for as long as it is held.
   '.x:active,.z:active{transform:scale(.92);background:#ff3fb0!important;color:#2a0730}' +
   '.o{-webkit-text-stroke:1px #ff4fa0;color:transparent;font-style:italic}' +
-  '.s{font-size:16px;letter-spacing:.14em;line-height:1.6}.w{letter-spacing:.6em}.d{opacity:.35}.r{color:#ff3b6b}' +
+  '.s{font-size:16px;letter-spacing:.14em;line-height:1.6}.w{letter-spacing:.6em}.d{opacity:.35}.r{color:#ff3b6b}.u{margin-bottom:auto}' +
   // A table is a left-aligned block that still sits in the middle of the screen: the
   // centred layer would otherwise centre every row of a table on its own width.
   '.q{font-size:13px;letter-spacing:.3em;opacity:.7;margin:1em 0}.t{display:inline-block;text-align:left}' +
@@ -386,6 +386,7 @@ function hud() {
     fart.style.background = gasCool > 0 ? 'linear-gradient(0deg,#ff3fb0 ' + (gasCool / 3) * 100 + '%,#2a073088 0)' : '';
     fart.style.opacity = gasCool > 0 ? '.6' : '';
   }
+  mid.classList.toggle('u', phase === 'title');
   let m = '';
   let l = '';
   const start = COARSE ? 'PRESS TO START' : 'PRESS SPACE TO START';
@@ -400,9 +401,9 @@ function hud() {
   } else if (phase === 'title') {
     m =
       '<div class=f><div class=q>TACTICAL FLATULENCE ACTION</div><span class=w>' + NAME + '<br>MISSIONS</span>' +
-      '<div class=q>NO ONE TAKES A UNICORN BY FORCE.<br>ONLY BY PATIENCE AND TRICKERY.</div>' +
-      '<div class="s r p">' + start + '</div></div>';
-    l = COARSE ? '' : 'ARROWS / WASD · MOVE      SPACE · FART      M · MUTE'; // the pad speaks for itself
+      '<div class=q>NO ONE TAKES A UNICORN BY FORCE.<br>ONLY BY PATIENCE AND TRICKERY.</div></div>';
+    // The prompt sits at the bottom, on the sky, not on the tiles; the pad speaks for itself.
+    l = '<div class="r p" style="font-size:26px;letter-spacing:.3em">' + start + '</div>' + (COARSE ? '' : '\nARROWS / WASD · MOVE      SPACE · FART      M · MUTE');
   } else if (phase === 'menu') {
     // The original's list: vertical, looping, cursor held at the centre, a full bar on
     // the current line, [EXIT] at the bottom whether or not it has anything to do.
