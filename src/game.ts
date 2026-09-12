@@ -155,8 +155,9 @@ const line = (s: string, i: number) => '<div class=f style="animation-delay:' + 
 
 /** A touchscreen, most likely: a first guess from the media query, settled by the first
  *  pointer that actually arrives — the hints and the pad change, the rules do not. */
-let COARSE = matchMedia('(pointer:coarse)').matches;
+let COARSE = matchMedia('(hover:none) and (pointer:coarse)').matches;
 addEventListener('pointerdown', (e) => { COARSE = e.pointerType === 'touch'; }, true);
+addEventListener('keydown', () => { COARSE = false; }); // a keyboard is not a phone
 
 // --- touch: drag anywhere to move, tap to fart or confirm, the corners for the rest ---
 const drag = { x: 0, y: 0, moved: false };
