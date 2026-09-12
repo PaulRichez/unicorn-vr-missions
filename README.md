@@ -4,8 +4,9 @@ An entry for [js13kGames](https://js13kgames.com) 2026, theme **Unicorns and Rai
 
 A stealth game in the shape of *Metal Gear Solid: VR Missions* (Sneaking mode, no weapon):
 thirteen small floating platforms, hunters walking fixed rounds, and a white unicorn that
-has to reach the goal — a diamond turning over the exit — without being seen. The tiles a
-hunter can see are painted grey on the floor. Snake knocked on walls to pull a guard off his round; the unicorn
+has to reach the goal — a diamond turning over the exit — without being seen. Where a key
+lies on the platform, the goal only appears once the key is taken. The tiles a hunter can
+see are painted grey on the floor. Snake knocked on walls to pull a guard off his round; the unicorn
 farts a rainbow. Every sighting costs the mission and, for good, a little of the world's
 colour — the ending is a rainbow drawn through whatever colour you have left.
 
@@ -24,13 +25,13 @@ colour — the ending is a rainbow drawn through whatever colour you have left.
 | Guard's cone of vision on the Soliton radar | The tiles he can see, painted grey on the floor; red while he investigates |
 | Knock on a wall, guard comes to look ("?") | Space: a rainbow fart, audible six tiles through walls, one every three seconds |
 | "!" and the alert sting | Same |
-| Noisy floor panels | Flowers that pop underfoot, audible four tiles |
+| Noisy floor panels | Flowers that pop underfoot, audible four tiles, a note hanging over each |
 | Snow that keeps footprints | Enchanted meadow that keeps a glitter trail; a hunter who sees it follows it |
 | Crawl ducts through the blocks | Tunnels under the hedge: the unicorn slips through, hunters neither enter nor see in |
 | Waist-high walls | Fences: they stop feet, not eyes |
 | Sleeping guards | A dozing hunter: blind until a noise wakes him, then a lookout for good |
 | Rotating cameras | A lookout: a hunter who never walks, only turns |
-| The goal, a stage mark you walk onto | A rainbow diamond over the exit tile |
+| The goal, a stage mark you walk onto; in SOCOM modes it appears once every target is down | A rainbow diamond over the exit tile; where there is a key, it appears once the key is taken |
 | LIMIT / TIME box, 1ST / 2ND / 3RD table, MISSION FAILED, mission list with % | Same, as DOM text |
 | Restarting a mission only costs time | Being seen also drains the world's colour, permanently |
 
@@ -103,7 +104,7 @@ tools/
 ```
 
 A level is a drawing: space is void, `.` floor, `#` wall, `U` start, `E` exit, `c` a
-colour to take, `,` flowers, `~` meadow, `-` a tunnel under the hedge, `=` a fence. A
+key to take (the goal waits for it), `,` flowers, `~` meadow, `-` a tunnel under the hedge, `=` a fence. A
 hunter is a list of tiles he walks between; one tile repeated twice is a lookout who only
 turns, one tile alone is a hunter asleep on it. A hunter walks straight between two
 consecutive waypoints without checking for walls, so no round may cross a `#`, `=`, `-`
