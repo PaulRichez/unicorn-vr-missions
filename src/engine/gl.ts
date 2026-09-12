@@ -29,8 +29,6 @@ void main(){
 // contents of a string literal, so a comment written in GLSL ships in the zip.
 //
 //   uB  x = how many colour bands the horn carries, y = 1 / its length
-//   uD  xy = where the dark stands, z = how far its reach extends
-//   uT    the world position to test for the viewmodel, which has none of its own
 //   uG  permanent desaturation: what every past failure has cost for good
 //
 // The banded branch stacks discrete colours along the horn, base to tip, never a
@@ -48,9 +46,6 @@ void main(){
 // ending on a hard dark edge. The fog colour is the clear colour before the drain, which
 // is applied after it, so a fogged side greys out with the rest.
 //
-// The dark itself is never drawn. It is only the last three lines: colour leaving the
-// world around a point, which is what tells the player where it stands without a single
-// marker on screen.
 const FRAG = `#version 300 es
 precision highp float;
 in vec3 vN;
@@ -62,8 +57,6 @@ uniform vec3 uE;
 uniform vec3 uC;
 uniform float uI;
 uniform vec2 uB;
-uniform vec3 uD;
-uniform vec2 uT;
 uniform float uG;
 uniform float uA;
 uniform float uF;
@@ -102,9 +95,7 @@ void main(){
 
   c = mix(c, vec3(.42, .2, .5), clamp(-vP.y * 1.2, 0., 1.) * .7);
 
-  vec2 wp = uI > .5 ? uT : vP.xz;
-  float g = max(uG, 1. - smoothstep(uD.z * .3, uD.z, distance(wp, uD.xy)));
-  c = mix(c, vec3(dot(c, vec3(.3, .59, .11))), g);
+  c = mix(c, vec3(dot(c, vec3(.3, .59, .11))), uG);
 
   o = vec4(c, uA * (uF > 0. ? clamp(vL / uF, 0., 1.) : 1.));
 }`;
@@ -128,8 +119,6 @@ const uE = gl.getUniformLocation(program, 'uE');
 const uC = gl.getUniformLocation(program, 'uC');
 const uI = gl.getUniformLocation(program, 'uI');
 const uB = gl.getUniformLocation(program, 'uB');
-const uD = gl.getUniformLocation(program, 'uD');
-const uT = gl.getUniformLocation(program, 'uT');
 const uG = gl.getUniformLocation(program, 'uG');
 const uA = gl.getUniformLocation(program, 'uA');
 const uF = gl.getUniformLocation(program, 'uF');
@@ -174,10 +163,8 @@ export function setBands(count: number, length: number) {
   gl.uniform2f(uB, count, 1 / length);
 }
 
-/** Where the dark stands and how far it reaches, plus the colour it has taken for good. */
-export function setDark(x: number, z: number, reach: number, grey: number, atX: number, atZ: number) {
-  gl.uniform3f(uD, x, z, reach);
-  gl.uniform2f(uT, atX, atZ);
+/** The colour the world has lost for good. */
+export function setGrey(grey: number) {
   gl.uniform1f(uG, grey);
 }
 

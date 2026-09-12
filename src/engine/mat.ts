@@ -19,41 +19,29 @@ export function perspective(o: M4, fovY: number, aspect: number, near: number, f
 }
 
 /**
- * View matrix from a position and yaw/pitch angles, without going through a
- * lookAt: the camera basis is built straight from the two angles.
- * yaw = 0, pitch = 0 looks down -Z.
+ * View matrix from a position and a pitch, square to the grid: the camera never yaws in
+ * this game. pitch = 0 looks down -Z; right is +X, and up is right x forward.
  */
-export function view(o: M4, px: number, py: number, pz: number, yaw: number, pitch: number): M4 {
-  const cy = Math.cos(yaw);
-  const sy = Math.sin(yaw);
+export function view(o: M4, px: number, py: number, pz: number, pitch: number): M4 {
   const cp = Math.cos(pitch);
   const sp = Math.sin(pitch);
-
-  // right, forward, then up = right x forward
-  const rx = cy, ry = 0, rz = sy;
-  const fx = sy * cp, fy = sp, fz = -cy * cp;
-  const ux = ry * fz - rz * fy;
-  const uy = rz * fx - rx * fz;
-  const uz = rx * fy - ry * fx;
-
-  o[0] = rx; o[4] = ry; o[8] = rz; o[12] = -(rx * px + ry * py + rz * pz);
-  o[1] = ux; o[5] = uy; o[9] = uz; o[13] = -(ux * px + uy * py + uz * pz);
-  o[2] = -fx; o[6] = -fy; o[10] = -fz; o[14] = fx * px + fy * py + fz * pz;
-  o[3] = 0; o[7] = 0; o[11] = 0; o[15] = 1;
+  o.fill(0);
+  o[0] = 1; o[12] = -px;
+  o[5] = cp; o[9] = sp; o[13] = -(cp * py + sp * pz);
+  o[6] = -sp; o[10] = cp; o[14] = sp * py - cp * pz;
+  o[15] = 1;
   return o;
 }
 
-/** o = a * b. Writes through a scratch buffer so o may alias a or b. */
-const scratch = new Float32Array(16);
+/** o = a * b. o must not be a or b: every caller hands in a third matrix. */
 export function multiply(o: M4, a: M4, b: M4): M4 {
   for (let c = 0; c < 4; c++) {
     for (let r = 0; r < 4; r++) {
       let s = 0;
       for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
-      scratch[c * 4 + r] = s;
+      o[c * 4 + r] = s;
     }
   }
-  o.set(scratch);
   return o;
 }
 

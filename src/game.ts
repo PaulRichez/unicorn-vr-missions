@@ -6,15 +6,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { W, H, DPR } from './engine/view';
-import { xr, xrOK, enterVR } from './engine/xr';
-import { gl, mesh, clear, setVP, setText, text, draw as drawMesh, setBands, setDark, setBlend, setSky, setFade, type Mesh } from './engine/gl';
+import { xr, xrOK, xrCheck, enterVR } from './engine/xr';
+import { gl, mesh, clear, setVP, setText, text, draw as drawMesh, setBands, setGrey, setBlend, setSky, setFade, type Mesh } from './engine/gl';
 import { mat, perspective, view, multiply, place, partAt, type M4 } from './engine/mat';
 import { cam, player, bounds, stick, update as moveRig, follow } from './engine/camera';
 import { sfx, toggleMute, isMuted } from './engine/audio';
 import { pressed, pointer } from './engine/input';
 import { ROT } from './engine/view';
 import { puff, dome, panel, ring, mark, arc, prismSolid, join, shift, keyShape, note } from './mesh';
-import { buildParts, PALETTE, SCALE, LEGS, HOOVES, HORN } from './unicorn';
+import { PARTS as uParts, PALETTE, SCALE, LEGS, HOOVES, HORN } from './unicorn';
 import * as Hunter from './hunter';
 import {
   load, LEVELS, gems, spawn, exit, roofs, par, limit, brief, at, wx, wz, ti, tj, solidBox, COLS, ROWS, TILE,
@@ -83,7 +83,6 @@ const arcMeshes = Array.from({ length: 7 }, (_, i) => mesh(arc(17 + i * 1.15, 18
 /** The goal: a diamond, the stage mark hovering over the exit the way people remember it. */
 const goalMesh = mesh(join(shift(prismSolid(1, 1, 0.02, 0.02, 0.8), 0, 0.8, 0), prismSolid(0.02, 0.02, 1, 1, 0.8)));
 
-const uParts = buildParts();
 const uMesh = uParts.map((p) => mesh(p.geo));
 const hMesh = Hunter.parts.map((p) => mesh(p.geo));
 
@@ -137,8 +136,6 @@ vrBtn.hidden = true;
 vrBtn.style.cssText = 'position:fixed;top:18px;left:50%;translate:-50%';
 vrBtn.onclick = enterVR;
 vrBtn.onpointerdown = (e) => e.stopPropagation(); // not a confirmation
-let vrOK = false;
-xrOK.then((ok) => { vrOK = ok; });
 top.style.cssText = 'text-align:left;white-space:pre;opacity:.9';
 mid.style.cssText = 'font-size:34px;letter-spacing:.24em;white-space:pre;line-height:1.35';
 low.style.cssText = 'opacity:.8;white-space:pre';
@@ -191,7 +188,7 @@ ui.addEventListener('touchstart', () => {});
 /** Writes only on change: rewriting the same HTML every frame would restart its animations. */
 const set = (el: HTMLElement, s: string) => { if (el.dataset.h !== s) el.innerHTML = el.dataset.h = s; };
 /** One line of a screen that builds itself up: the i-th fades in after the others. */
-const line = (s: string, _i?: number) => '<div>' + s + '</div>';
+const line = (s: string) => '<div>' + s + '</div>';
 
 /** A touchscreen, most likely: a first guess from the media query, settled by the first
  *  pointer that actually arrives — the hints and the pad change, the rules do not. */
@@ -394,7 +391,7 @@ function hud() {
   set(fart, label);
   fart.style.fontSize = label.length > 2 ? '20px' : '';
   fart.hidden = !COARSE || phase === 'boot';
-  vrBtn.hidden = !vrOK || !!xr.session || phase === 'boot';
+  vrBtn.hidden = !xrOK || !!xr.session || phase === 'boot';
   pad.hidden = !COARSE || !(phase === 'menu' || phase === 'intro' || phase === 'play');
   // The pink of the press drains out of the button until the next fart is ready.
   if (COARSE) {
@@ -408,7 +405,7 @@ function hud() {
   if (phase === 'boot') {
     // The machine boots the way the original's did: a log, one line at a time.
     m =
-      '<div class="s t x">' + line('UNICORN VR SYSTEM', 0) + line('LOADING PLATFORM ....... OK', 1) + '</div>';
+      '<div class="s t x">' + line('UNICORN VR SYSTEM') + line('LOADING PLATFORM ....... OK') + '</div>';
     l = '<span class=p>' + start + '</span>'; // the log can be skipped, and says so
   } else if (phase === 'title') {
     m =
@@ -430,8 +427,8 @@ function hud() {
     l = (cursor <= p ? 'TARGET ' + fmt(LEVELS[cursor].par) : 'LOCKED') + (kb ? '\n\nSPACE · START      ESC · EXIT' : '');
   } else if (phase === 'intro') {
     m = phaseT > 0.5
-      ? line('MISSION ' + n + '<div class=s><br>' + brief + (gems.length ? '<br>TAKE THE KEY FIRST' : '') + '</div>', 0)
-      : line('START', 0);
+      ? line('MISSION ' + n + '<div class=s><br>' + brief + (gems.length ? '<br>TAKE THE KEY FIRST' : '') + '</div>')
+      : line('START');
     l = 'TARGET ' + fmt(par) + '      LIMIT ' + fmt(limit);
   } else if (phase === 'play') {
     m = caughtT > 0 ? '<span class=r>' + (timeUp ? 'TIME UP<br>' : '') + 'MISSION FAILED</span>' : '';
@@ -439,20 +436,20 @@ function hud() {
   } else if (phase === 'won') {
     // The original's table of three times, filled in by the machine before you ran.
     m =
-      line('MISSION ' + n + ' CLEARED', 0) + '<div class="s t x">' +
+      line('MISSION ' + n + ' CLEARED') + '<div class="s t x">' +
       line('1ST    ' + fmt(par) + '<br><span class="' +
-        (clock <= par ? 'b' : '') + '">TIME   ' + fmt(clock) + '</span>', 0.5) + '</div>';
+        (clock <= par ? 'b' : '') + '">TIME   ' + fmt(clock) + '</span>') + '</div>';
     l = level + 1 < N ? 'NEXT STAGE...' : '';
   } else if (phase === 'end') {
     m =
       phaseT < 2
         ? ''
-        : line('ALL MISSIONS COMPLETE', 0) + '<div class="s t x">' + line('TOTAL         ' + fmt(runT), 1) +
-          line('COLOUR KEPT   ' + Math.round((1 - grey) * 100) + ' %', 2) +
+        : line('ALL MISSIONS COMPLETE') + '<div class="s t x">' + line('TOTAL         ' + fmt(runT)) +
+          line('COLOUR KEPT   ' + Math.round((1 - grey) * 100) + ' %') +
           '</div>' +
           line('<div class=s><br>' +
             (!grey ? 'NO ONE EVER SAW YOU' : grey === 1 ? 'LIFE IS NOT A FAIRY TALE' : '') +
-            '</div>', 3);
+            '</div>');
     l = phaseT > 3 && !COARSE ? 'SPACE · AGAIN' : '';
   }
   set(mid, m);
@@ -502,7 +499,7 @@ export function update(dt: number) {
   if (downT >= 0 && (downT += dt) > 1.7) { downT = -1; bootT = 0; }
 
   if (phase === 'boot') {
-    if (bootT > 2.4 || go) phase = 'title';
+    if (bootT > 2.4 || go) { phase = 'title'; xrCheck(); }
   } else if (phase === 'title') {
     if (go) { phase = 'menu'; preview(Math.min(cleared(), N - 1)); }
   } else if (phase === 'menu') {
@@ -579,8 +576,8 @@ function play(dt: number) {
 
   // Slide along edges: resolve each axis on its own so a corner does not stop you dead.
   // There is no outer wall — what stops you is the platform simply ending.
-  if (solidBox(player.x, wasZ, 0, BODY, BODY)) player.x = wasX;
-  if (solidBox(player.x, player.z, 0, BODY, BODY)) player.z = wasZ;
+  if (solidBox(player.x, wasZ, BODY)) player.x = wasX;
+  if (solidBox(player.x, player.z, BODY)) player.z = wasZ;
 
   // The muzzle and the rump against walls: pushed out along the body's axis, never refused.
   const fx = Math.sin(player.yaw), fz = -Math.cos(player.yaw);
@@ -589,10 +586,10 @@ function play(dt: number) {
   const px = player.x, pz = player.z;
   for (let k = 0; k < 6 && nose(); k++) { player.x -= fx * 0.1; player.z -= fz * 0.1; }
   for (let k = 0; k < 6 && tail(); k++) { player.x += fx * 0.1; player.z += fz * 0.1; }
-  if (solidBox(player.x, player.z, 0, BODY, BODY)) { player.x = px; player.z = pz; }
+  if (solidBox(player.x, player.z, BODY)) { player.x = px; player.z = pz; }
 
   // Last resort. Whatever the geometry does, the pose ends the frame outside the walls.
-  if (solidBox(player.x, player.z, 0, BODY, BODY) || nose() || tail()) {
+  if (solidBox(player.x, player.z, BODY) || nose() || tail()) {
     player.x = safe.x;
     player.z = safe.z;
   } else {
@@ -791,7 +788,7 @@ export function draw() {
   gl.bindFramebuffer(gl.FRAMEBUFFER, pose ? layer.framebuffer : null);
   clear(bg[0], bg[1], bg[2]);
   if (!pose) {
-    view(cameraView, cam.x, cam.y, cam.z, cam.yaw, cam.pitch);
+    view(cameraView, cam.x, cam.y, cam.z, cam.pitch);
     multiply(vp, proj, cameraView);
     setVP(vp, cam.x, cam.y, cam.z);
     scene(cam.x, cam.z);
@@ -802,21 +799,21 @@ export function draw() {
   // The platform's near edge stays 35 cm in front whatever its size: a big one reaches
   // further out over the table, a small one sits close, and both can be leaned over.
   xr.z = -0.35 - bounds.z * xr.k;
-  place(roomM, xr.x, xr.y, xr.z, 0, 0, xr.k);
+  place(roomM, 0, 0.9, xr.z, 0, 0, xr.k);
   for (const v of pose.views) {
     const o = layer.getViewport(v);
     gl.viewport(o.x, o.y, o.width, o.height);
     multiply(eyeM, v.transform.inverse.matrix, roomM);
     multiply(vp, v.projectionMatrix, eyeM);
     const q = v.transform.position;
-    const ex = (q.x - xr.x) / xr.k, ey = (q.y - xr.y) / xr.k, ez = (q.z - xr.z) / xr.k;
+    const ex = q.x / xr.k, ey = (q.y - 0.9) / xr.k, ez = (q.z - xr.z) / xr.k;
     setVP(vp, ex, ey, ez);
     scene(ex, ez);
   }
 }
 
 function scene(ex: number, ez: number) {
-  setDark(999, 999, 1, grey, ex, ez);
+  setGrey(grey);
 
   // The sky: a care-bear sky, on purpose. The platform hangs in it, and the whole thing
   // drains along with everything else when the hunters have taken enough. Its pink

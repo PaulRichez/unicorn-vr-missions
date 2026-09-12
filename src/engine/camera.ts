@@ -20,7 +20,7 @@ export const stick = { x: 0, y: 0 };
  * The original also swings to other poses in context — flat along a corridor when you
  * press to a wall, low when you crawl. Worth stealing later; this is the default one.
  */
-export const cam = { x: 0, y: 10, z: 12, yaw: 0, pitch: -1.12, dist: 26 };
+export const cam = { x: 0, y: 10, z: 12, pitch: -1.12, dist: 26 };
 /** Half the platform's extent, set when a level loads: the shot never leaves it. */
 export const bounds = { x: 0, z: 0 };
 
@@ -37,10 +37,9 @@ export function follow(dt: number, snap = false) {
   const vx = cam.dist * 0.41 * (W / H || 1.6), vz = cam.dist * 0.37;
   const ax = Math.max(0, bounds.x - vx), az = Math.max(0, bounds.z - vz);
   const px = Math.max(-ax, Math.min(ax, player.x)), pz = Math.max(-az, Math.min(az, player.z));
-  const cp = Math.cos(cam.pitch);
-  const tx = px - Math.sin(cam.yaw) * cp * cam.dist;
+  const tx = px;
   const ty = -Math.sin(cam.pitch) * cam.dist;
-  const tz = pz + Math.cos(cam.yaw) * cp * cam.dist;
+  const tz = pz + Math.cos(cam.pitch) * cam.dist;
   const k = snap ? 1 : Math.min(1, dt * LAG);
   cam.x += (tx - cam.x) * k;
   cam.y += (ty - cam.y) * k;
@@ -64,10 +63,8 @@ export function update(dt: number) {
   player.speed = 0;
   if (!f && !s) return;
 
-  const cy = Math.cos(cam.yaw);
-  const sy = Math.sin(cam.yaw);
-  let dx = sy * f + cy * s;
-  let dz = -cy * f + sy * s;
+  let dx = s;
+  let dz = -f;
   const l = Math.hypot(dx, dz) || 1;
   dx /= l;
   dz /= l;

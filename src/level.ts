@@ -307,14 +307,10 @@ export const blocksSight = (i: number, j: number) => at(i, j) === '#' || at(i, j
  *
  * Facing follows the movement convention: forward is (sin yaw, -cos yaw) on the floor.
  */
-export function solidBox(x: number, z: number, yaw: number, half: number, wide: number) {
-  const fx = Math.sin(yaw), fz = -Math.cos(yaw);
-  const rx = Math.cos(yaw), rz = Math.sin(yaw);
+export function solidBox(x: number, z: number, half: number) {
   for (const a of [half, -half]) {
-    for (const b of [wide, -wide]) {
-      const px = x + fx * a + rx * b;
-      const pz = z + fz * a + rz * b;
-      if (isSolid(ti(px), tj(pz))) return true;
+    for (const b of [half, -half]) {
+      if (isSolid(ti(x + b), tj(z + a))) return true;
     }
   }
   return false;

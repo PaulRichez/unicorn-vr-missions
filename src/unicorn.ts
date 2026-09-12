@@ -6,21 +6,9 @@
 // Cones are grown from their base rather than centred, so the horn's banding can be
 // driven by distance along the shape.
 
+import { tri, quad } from './mesh';
+
 type V3 = [number, number, number];
-
-function tri(out: number[], a: V3, b: V3, c: V3) {
-  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
-  const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
-  let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-  const l = Math.hypot(nx, ny, nz) || 1;
-  nx /= l; ny /= l; nz /= l;
-  for (const p of [a, b, c]) out.push(p[0], p[1], p[2], nx, ny, nz);
-}
-
-const quad = (out: number[], a: V3, b: V3, c: V3, d: V3) => {
-  tri(out, a, b, c);
-  tri(out, a, c, d);
-};
 
 /** Centred box. */
 function boxG(w: number, h: number, d: number): number[] {
@@ -86,8 +74,6 @@ export interface Part {
   x: number; y: number; z: number;
   rz: number; rx: number;
   color: number;
-  /** Index into the table, so the walk cycle can find the legs. */
-  slot: number;
 }
 
 //            t   x   y   z  s1  s2  s3  rz  rx col fl
@@ -139,7 +125,7 @@ const D2R = Math.PI / 180;
 
 /** Turn any 11-number table into drawable parts — the unicorn, the hunter, anything. */
 export function buildFrom(table: number[][]): Part[] {
-  return table.map((p, slot) => {
+  return table.map((p) => {
     const [type, x, y, z, s1, s2, s3, rz, rx, color, flags] = p;
     let geo: number[];
     let yOff = 0;
@@ -150,11 +136,11 @@ export function buildFrom(table: number[][]): Part[] {
       geo = coneG(s1 / 10, s2 / 10, flags & 1 ? 5 : 9);
       yOff = -s2 / 20; // grown from its base, so drop it half a height to stay put
     }
-    return { geo: new Float32Array(geo), x, y: y + yOff, z, rz: rz * D2R, rx: rx * D2R, color, slot };
+    return { geo: new Float32Array(geo), x, y: y + yOff, z, rz: rz * D2R, rx: rx * D2R, color };
   });
 }
 
-export const buildParts = () => buildFrom(TABLE);
+export const PARTS = buildFrom(TABLE);
 
 /** Model units are roughly a hand tall; this brings the animal to about 1.9 metres. */
 export const SCALE = 0.055;

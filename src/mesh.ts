@@ -8,7 +8,7 @@
 type V3 = [number, number, number];
 
 /** Push one triangle with its face normal repeated per vertex — that is the flat look. */
-function tri(out: number[], a: V3, b: V3, c: V3) {
+export function tri(out: number[], a: V3, b: V3, c: V3) {
   const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
   const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
   let nx = uy * vz - uz * vy;
@@ -19,7 +19,7 @@ function tri(out: number[], a: V3, b: V3, c: V3) {
   for (const p of [a, b, c]) out.push(p[0], p[1], p[2], nx, ny, nz);
 }
 
-const quad = (out: number[], a: V3, b: V3, c: V3, d: V3) => {
+export const quad = (out: number[], a: V3, b: V3, c: V3, d: V3) => {
   tri(out, a, b, c);
   tri(out, a, c, d);
 };
@@ -57,14 +57,11 @@ function prism(out: number[], t: Xf, w0: number, d0: number, w1: number, d1: num
  * rather than round. Flat-shaded, the facets read as a stylised cloud â€” the only kind a
  * polygon renderer can afford. `squash` flattens it into a bank rather than a puff.
  */
-export function cloudInto(
-  out: number[], t: Xf, radius: number, seed: number, squash = 1, bump = 0.22, rings = 7, sides = 12,
-) {
+export function cloudInto(out: number[], t: Xf, r: number, rings: number, sides: number) {
   const at = (i: number, j: number): V3 => {
     const th = (i / rings) * Math.PI;
     const ph = (j / sides) * Math.PI * 2;
-    const r = radius * (1 + bump * Math.sin(3 * ph + seed) * Math.sin(2 * th + seed * 1.7));
-    return put(t, r * Math.sin(th) * Math.cos(ph), r * Math.cos(th) * squash, r * Math.sin(th) * Math.sin(ph));
+    return put(t, r * Math.sin(th) * Math.cos(ph), r * Math.cos(th), r * Math.sin(th) * Math.sin(ph));
   };
   for (let i = 0; i < rings; i++) {
     for (let j = 0; j < sides; j++) {
@@ -78,14 +75,14 @@ export function cloudInto(
  * is the scalloped silhouette, not the surface — one dented ball reads as a rock, five
  * clean balls in a row read as a cloud.
  */
-export function puff(scale = 1): Float32Array {
+export function puff(scale: number): Float32Array {
   const out: number[] = [];
   const lobes = [
     [-0.62, 0.34, 0, 0.4], [-0.22, 0.46, 0.04, 0.52], [0.24, 0.5, -0.03, 0.5],
     [0.66, 0.32, 0.02, 0.38], [0.02, 0.28, 0.16, 0.42],
   ];
   for (const [x, y, z, r] of lobes) {
-    cloudInto(out, [x * scale, y * scale, z * scale, 0, 0], r * scale, 0, 1, 0, 6, 10);
+    cloudInto(out, [x * scale, y * scale, z * scale, 0, 0], r * scale, 6, 10);
   }
   return new Float32Array(out);
 }
@@ -143,7 +140,7 @@ export const join = (...parts: Float32Array[]): Float32Array => {
 };
 
 /** A slice of annulus between two angles, flat, facing +Z. */
-export function arc(r0: number, r1: number, from: number, to: number, segs = 24): Float32Array {
+export function arc(r0: number, r1: number, from: number, to: number, segs: number): Float32Array {
   const out: number[] = [];
   const at = (i: number, r: number): V3 => {
     const a = from + ((to - from) * i) / segs;

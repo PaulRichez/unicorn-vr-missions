@@ -10,23 +10,23 @@ export const xr = {
   session: null as any,
   frame: null as any,
   space: null as any,
-  /** Room from world: a tile is fifteen centimetres, the table stands at hip height, and
-   * the near edge of every platform is a hand's reach in front of the player (see draw). */
+  /** Room from world: a tile is fifteen centimetres, the table stands 0.9 m high, and the
+   * near edge of every platform is a hand's reach in front of the player (see draw). */
   k: 0.05,
-  x: 0,
-  y: 0.9,
   z: 0,
   /** Set by main: the window loop and the viewport take over when the session ends. */
   onEnd: () => {},
 };
 
-const sys = (navigator as any).xr;
-/** Resolves to whether a headset can be entered from this page. */
-export const xrOK: Promise<boolean> = sys ? sys.isSessionSupported('immersive-vr') : Promise.resolve(false);
+/** Whether a headset can be entered from this page. Asked once the boot log is over, not
+ * at load, and navigator.xr read fresh then: an emulator extension installs its runtime
+ * a moment after the page's own script ran, replacing the browser's object. */
+export let xrOK = false;
+export const xrCheck = () => (navigator as any).xr?.isSessionSupported('immersive-vr').then((ok: boolean) => { xrOK = ok; });
 
 /** Must be called from a click: a session needs a gesture the way sound does. */
 export function enterVR() {
-  sys.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] }).then(async (s: any) => {
+  (navigator as any).xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] }).then(async (s: any) => {
     await (gl as any).makeXRCompatible();
     s.updateRenderState({ baseLayer: new (self as any).XRWebGLLayer(s, gl) });
     xr.space = await s.requestReferenceSpace('local-floor');
