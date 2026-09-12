@@ -8,9 +8,10 @@
 import { W, H, DPR } from './engine/view';
 import { gl, mesh, frame, draw as drawMesh, setBands, setDark, setBlend, setSky, setFade, type Mesh } from './engine/gl';
 import { mat, perspective, view, multiply, place, partAt, type M4 } from './engine/mat';
-import { cam, player, bounds, update as moveRig, follow } from './engine/camera';
+import { cam, player, bounds, stick, update as moveRig, follow } from './engine/camera';
 import { sfx, toggleMute, isMuted } from './engine/audio';
-import { pressed, keys, pointer } from './engine/input';
+import { pressed, pointer } from './engine/input';
+import { ROT } from './engine/view';
 import { puff, dome, panel, ring, mark, arc, prismSolid, join, shift, keyShape, note } from './mesh';
 import { buildParts, PALETTE, SCALE, LEGS, HOOVES, HORN } from './unicorn';
 import * as Hunter from './hunter';
@@ -94,11 +95,14 @@ ui.innerHTML =
   // A dark backing behind the border, so a boxed line stays readable over a pink floor
   // or a white cloud instead of dissolving into whatever the camera happens to be over.
   '.x{border:1px solid #fbd9;background:#2a073066;padding:.1em .7em;display:inline-block;pointer-events:auto;touch-action:none}' +
-  '.j{position:fixed;bottom:18px;display:grid;grid-template:repeat(3,58px)/repeat(3,58px);gap:5px;left:18px}' +
-  '.j b,.z{display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid #fbd9;background:#2a073088;border-radius:.4em;pointer-events:auto;touch-action:none}' +
-  '.z{position:fixed;right:22px;bottom:30px;width:96px;height:96px;border-radius:50%;font-size:40px}' +
+  // The stick: a base at bottom-left, a knob that follows the thumb within it.
+  '.j{position:fixed;left:24px;bottom:24px;width:130px;height:130px;border-radius:50%;border:1px solid #fbd9;background:#2a073066;pointer-events:auto;touch-action:none}' +
+  '.j i{position:absolute;left:35px;top:35px;width:60px;height:60px;border-radius:50%;background:#ff3fb0aa;display:block}' +
+  '.z{position:fixed;right:22px;bottom:30px;width:96px;height:96px;border-radius:50%;font-size:40px;display:flex;align-items:center;justify-content:center;border:1px solid #fbd9;background:#2a073088;pointer-events:auto;touch-action:none}' +
+  // display:flex above would beat the browser's own rule for the hidden attribute.
+  '[hidden]{display:none!important}' +
   // Pressing shows: the button shrinks a touch and goes full pink for as long as it is held.
-  '.x:active,.j b:active,.z:active{transform:scale(.92);background:#ff3fb0!important;color:#2a0730}' +
+  '.x:active,.z:active{transform:scale(.92);background:#ff3fb0!important;color:#2a0730}' +
   '.o{-webkit-text-stroke:1px #ff4fa0;color:transparent;font-style:italic}' +
   '.s{font-size:16px;letter-spacing:.14em;line-height:1.6}.w{letter-spacing:.6em}.d{opacity:.35}.r{color:#ff3b6b}' +
   // A table is a left-aligned block that still sits in the middle of the screen: the
@@ -113,10 +117,11 @@ const top = document.createElement('div');
 const mid = document.createElement('div');
 const low = document.createElement('div');
 const pct = document.createElement('div');
-/** The touch pad and the fart button; only shown on a touchscreen, only in a mission. */
+/** The stick and the big button; only shown on a touchscreen. */
 const pad = document.createElement('div');
 pad.className = 'j';
-pad.innerHTML = '<b data-h=BU style="grid-area:1/2">\u25B2</b><b data-h=BL style="grid-area:2/1">\u25C0</b><b data-h=BR style="grid-area:2/3">\u25B6</b><b data-h=BD style="grid-area:3/2">\u25BC</b>';
+pad.innerHTML = '<i></i>';
+const knob = pad.firstChild as HTMLElement;
 const fart = document.createElement('b');
 fart.className = 'z';
 fart.textContent = '\u{1F4A8}';
@@ -126,25 +131,46 @@ low.style.cssText = 'opacity:.8;white-space:pre';
 pct.style.cssText = 'position:absolute;top:18px;right:22px';
 ui.append(top, mid, low, pct, pad, fart);
 document.body.appendChild(ui);
-// Held keys from the pad (data-h), single presses from any box (data-p). Each button gets
-// its own pointer, so a thumb on the pad and a finger on the button work together.
+// Single presses from any box (data-p): the big button, the mission box, the sound box,
+// the clock, EXIT. Fingers and pens only — the mouse plays no part in this game.
+// A box with no action of its own (the boot log, the score table) takes a finger the way
+// the floor does: it confirms, outside a mission.
 ui.addEventListener('pointerdown', (e) => {
-  const el = (e.target as HTMLElement).closest('[data-h],[data-p]') as HTMLElement | null;
-  if (!el) return;
+  if (e.pointerType === 'mouse') return;
   e.preventDefault();
-  if (el.dataset.p) pressed.add(el.dataset.p);
-  else {
-    // Held for walking; a press too, so up and down also move the cursor in the list.
-    keys.add(el.dataset.h!);
-    pressed.add(el.dataset.h === 'BU' ? 'ArrowUp' : el.dataset.h === 'BD' ? 'ArrowDown' : '');
-    el.setPointerCapture(e.pointerId);
-  }
-});
-for (const ev of ['pointerup', 'pointercancel']) ui.addEventListener(ev, (e) => {
-  const el = (e.target as HTMLElement).closest('[data-h]') as HTMLElement | null;
-  if (el) keys.delete(el.dataset.h!);
+  const el = (e.target as HTMLElement).closest('[data-p]') as HTMLElement | null;
+  pressed.add(el ? el.dataset.p! : phase === 'play' ? '' : 'Space');
 });
 fart.dataset.p = 'Space';
+// The stick: the knob follows the thumb up to 45 px from where it landed, and steers.
+// Each finger is its own pointer, so the stick and the button work together. A flick up
+// or down is also a press, to move the cursor in the mission list.
+const sk = { id: -1, x: 0, y: 0, fy: 0 };
+pad.addEventListener('pointerdown', (e) => {
+  e.stopPropagation(); // a thumb on the stick is not a confirmation
+  if (e.pointerType === 'mouse') return;
+  sk.id = e.pointerId; sk.x = e.clientX; sk.y = e.clientY; sk.fy = 0;
+  pad.setPointerCapture(e.pointerId);
+});
+pad.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== sk.id) return;
+  // On a phone held upright the page is turned a quarter turn: undo it for the deltas.
+  let dx = e.clientX - sk.x, dy = e.clientY - sk.y;
+  if (ROT) [dx, dy] = [dy, -dx];
+  const d = Math.hypot(dx, dy), m = Math.min(1, d / 45);
+  if (d > 0) { dx *= (m * 45) / d; dy *= (m * 45) / d; }
+  knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+  stick.x = m > 0.25 ? dx / 45 : 0;
+  stick.y = m > 0.25 ? dy / 45 : 0;
+  if (Math.abs(dy) > 25) sk.fy = dy;
+});
+pad.onpointerup = pad.onpointercancel = (e) => {
+  if (e.pointerId !== sk.id) return;
+  sk.id = -1;
+  stick.x = stick.y = 0;
+  knob.style.transform = '';
+  if (sk.fy) pressed.add(sk.fy < 0 ? 'ArrowUp' : 'ArrowDown');
+};
 // iOS only paints :active on elements with a touch listener somewhere above them.
 ui.addEventListener('touchstart', () => {});
 
@@ -155,33 +181,16 @@ const line = (s: string, i: number) => '<div class=f style="animation-delay:' + 
 
 /** A touchscreen, most likely: a first guess from the media query, settled by the first
  *  pointer that actually arrives — the hints and the pad change, the rules do not. */
-let COARSE = matchMedia('(hover:none) and (pointer:coarse)').matches;
+let COARSE = navigator.maxTouchPoints > 0 && matchMedia('(hover:none)').matches;
+// A wrong first guess is corrected by the first thing that moves: a finger says phone, a
+// mouse or a key says PC. Firefox on a touchscreen laptop answers hover:none, which lies.
 addEventListener('pointerdown', (e) => { COARSE = e.pointerType === 'touch'; }, true);
-addEventListener('keydown', () => { COARSE = false; }); // a keyboard is not a phone
+addEventListener('pointermove', (e) => { COARSE = e.pointerType === 'touch'; }, true);
+addEventListener('keydown', () => { COARSE = false; });
 
-// --- touch: drag anywhere to move, tap to fart or confirm, the corners for the rest ---
-const drag = { x: 0, y: 0, moved: false };
-const FINGER = ['TU', 'TD', 'TL', 'TR'];
+// --- touch: a finger on the floor confirms, outside a mission; the buttons do the rest ---
 function touch() {
-  if (pointer.hit) { drag.x = pointer.x; drag.y = pointer.y; drag.moved = false; }
-  for (const k of FINGER) keys.delete(k);
-  const dx = pointer.x - drag.x, dy = pointer.y - drag.y;
-  const d = Math.hypot(dx, dy);
-  if (pointer.down && d > 18) {
-    // Eight ways from the point the finger landed, like a stick with no centre spring.
-    drag.moved = true;
-    if (dy < -d * 0.38) keys.add('TU');
-    if (dy > d * 0.38) keys.add('TD');
-    if (dx < -d * 0.38) keys.add('TL');
-    if (dx > d * 0.38) keys.add('TR');
-  }
-  if (pointer.up) {
-    if (drag.moved) { if (Math.abs(dy) > Math.abs(dx)) pressed.add(dy < 0 ? 'ArrowUp' : 'ArrowDown'); }
-    else if (pointer.y < 70 && pointer.x < 170) pressed.add('Escape');
-    else if (pointer.y < 70 && pointer.x > W - 130) pressed.add('KeyM');
-    else if (pointer.y > H - 80 && Math.abs(pointer.x - W / 2) < 120) pressed.add(fails > 2 ? 'Enter' : 'KeyR');
-    else pressed.add('Space');
-  }
+  if (pointer.up && phase !== 'play') pressed.add('Space');
   pointer.hit = pointer.up = false; // consumed by this step, not by the next one too
 }
 
@@ -359,14 +368,19 @@ function hud() {
   set(pct, phase === 'boot' ? '' : '<span class=x data-p=KeyM>' + (isMuted() ? '\u{1F507}' : '\u{1F50A}') + '</span>');
   // The two-line box of every VR mission; TIME turns red and pulses in the last ten seconds.
   const box =
-    '<div class="x t" data-p=' + (fails > 2 ? 'Enter' : 'KeyR') + '><span style="opacity:.6">\u21BB  LIMIT  ' + fmt(limit) +
+    '<div class="x t" data-p=' + (fails > 2 ? 'Enter' : 'KeyR') + '><span style="opacity:.6">' + (fails > 2 ? '\u23ED' : '\u21BB') + '  LIMIT  ' + fmt(limit) +
     '</span>\n<span class="' + (limit - clock < 10 && (t * 4) % 1 < 0.5 ? 'r' : '') + '">   TIME   ' + fmt(clock) + '</span></div>';
   const inPlay = phase === 'play' && !(caughtT > 0 && caughtT < 0.9);
   set(top, phase === 'boot' || phase === 'title' || phase === 'menu' || phase === 'end' ? ''
     : '<span class=x data-p=Escape>\u2630  MISSION ' + n + '</span>' +
       (phase === 'play' ? (level < 2 && !COARSE ? '\nSPACE · FART   ESC · MENU' : '') + (fails > 2 ? (COARSE ? '\nTHE CLOCK · SKIP' : '\nENTER · SKIP') : '') : '') +
       (COARSE && inPlay ? '\n' + box : ''));
-  pad.hidden = fart.hidden = !COARSE || phase === 'boot';
+  // The big button says what it does on this screen; the pad only shows where it serves.
+  const label = phase === 'title' || phase === 'menu' ? 'START' : phase === 'won' ? 'NEXT' : phase === 'end' ? (phaseT > 3 ? 'AGAIN' : '') : '\u{1F4A8}';
+  set(fart, label);
+  fart.style.fontSize = label.length > 2 ? '20px' : '';
+  fart.hidden = !COARSE || phase === 'boot';
+  pad.hidden = !COARSE || !(phase === 'menu' || phase === 'intro' || phase === 'play');
   // The pink of the press drains out of the button until the next fart is ready.
   if (COARSE) {
     fart.style.background = gasCool > 0 ? 'linear-gradient(0deg,#ff3fb0 ' + (gasCool / 3) * 100 + '%,#2a073088 0)' : '';
@@ -374,6 +388,7 @@ function hud() {
   }
   let m = '';
   let l = '';
+  const start = COARSE ? 'PRESS TO START' : 'PRESS SPACE TO START';
 
   if (phase === 'boot') {
     // The machine boots the way the original's did: a log, one line at a time.
@@ -381,23 +396,24 @@ function hud() {
       '<div class="s t x">' + line('UNICORN VR SYSTEM', 0) + line('LOADING PLATFORM ....... OK', 1) +
       line('CALIBRATING HORN ....... OK', 2) + line('PAINTING SKY ........... OK', 3) +
       line('HUNTERS ON THEIR ROUNDS  OK', 4) + '</div>';
+    l = '<span class=p>' + start + '</span>'; // the log can be skipped, and says so
   } else if (phase === 'title') {
     m =
       '<div class=f><div class=q>TACTICAL FLATULENCE ACTION</div><span class=w>' + NAME + '<br>MISSIONS</span>' +
       '<div class=q>NO ONE TAKES A UNICORN BY FORCE.<br>ONLY BY PATIENCE AND TRICKERY.</div>' +
-      '<div class="s r p">' + (COARSE ? 'TAP \u{1F4A8} TO START' : 'PRESS SPACE') + '</div></div>';
+      '<div class="s r p">' + start + '</div></div>';
     l = COARSE ? '' : 'ARROWS / WASD · MOVE      SPACE · FART      M · MUTE'; // the pad speaks for itself
   } else if (phase === 'menu') {
     // The original's list: vertical, looping, cursor held at the centre, a full bar on
     // the current line, [EXIT] at the bottom whether or not it has anything to do.
     // A cleared mission carries its best time on its own line; a locked one is dimmed.
-    m = '<div class="s f">SNEAKING MODE · NO HORN<br><br><div class=t>';
+    m = '<div class=s>SNEAKING MODE · NO HORN<br><br><div class=t>';
     for (let k = -2; k <= 2; k++) {
       const i = (cursor + k + N) % N;
       const b = best(i);
       m += '<div class="' + (k ? '' : 'b c ') + (i > p ? 'd' : '') + '">MISSION ' + two(i + 1) + (b ? '   ' + fmt(b) : '') + '</div>';
     }
-    m += '<br><span class=x>EXIT</span></div></div>';
+    m += '<br><span class=x data-p=Escape>EXIT</span></div></div>';
     l = (cursor <= p ? 'TARGET ' + fmt(LEVELS[cursor].par) : 'LOCKED') + (COARSE ? '' : '\n\nUP / DOWN · CHOOSE      SPACE · START      ESC · EXIT');
   } else if (phase === 'intro') {
     m = phaseT > 0.5
@@ -424,7 +440,7 @@ function hud() {
           line('<div class=s><br>' +
             (!grey ? 'PERFECT RUN · NO ONE EVER SAW YOU' : grey === 1 ? 'THE COLOUR IS GONE.<br>LIFE IS NOT A FAIRY TALE.' : '') +
             '</div>', 3);
-    l = phaseT > 3 ? 'SPACE · AGAIN' : '';
+    l = phaseT > 3 && !COARSE ? 'SPACE · AGAIN' : '';
   }
   set(mid, m);
   set(low, l);

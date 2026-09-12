@@ -13,11 +13,12 @@ colour — the ending is a rainbow drawn through whatever colour you have left.
 - **Categories** — Desktop + Mobile
 - **Budget** — 13,312 bytes, zipped
 - **Controls** — arrows / WASD move, Space farts, R restarts, M mutes, Escape returns to
-  the menu, Enter skips a mission after three failures. On a touchscreen: a pad to move (it
-  also steers the mission list), a big button to fart or confirm that fills up while the
+  the menu, Enter skips a mission after three failures. The mouse does nothing. On a
+  touchscreen: a stick to move (a flick up or down also steers the mission list), a big
+  button that says what it does (START, fart, NEXT, AGAIN) and drains its pink while the
   next fart recharges, and the mission box, the sound box and the clock are buttons (menu,
-  mute, restart). Dragging anywhere on the floor moves too. A phone held upright gets the
-  page turned a quarter turn: the game is always landscape, nothing to rotate
+  mute, restart or skip). A tap anywhere confirms, outside a mission. A phone held upright
+  gets the page turned a quarter turn: the game is always landscape, nothing to rotate
 
 ## How it plays
 

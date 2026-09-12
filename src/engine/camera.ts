@@ -8,6 +8,8 @@ import { W, H } from './view';
 
 /** The unicorn on the floor: where it stands and which way it faces. */
 export const player = { x: 0, z: 0, yaw: 0, speed: 0 };
+/** The on-screen stick, -1..1 on each axis, screen-relative like the keys; zero at rest. */
+export const stick = { x: 0, y: 0 };
 
 /**
  * Where the eye sits. Overhead and square to the grid, the way Metal Gear framed it —
@@ -54,10 +56,10 @@ function turnToward(from: number, to: number, max: number) {
 
 /** Movement reads relative to the screen: up on the keys is away from the camera. */
 export function update(dt: number) {
-  // The last two codes of each are the finger: a drag on the screen (T) or the pad (B).
-  const k = (...c: string[]) => (c.some((x) => keys.has(x)) ? 1 : 0);
-  const f = k('KeyW', 'ArrowUp', 'TU', 'BU') - k('KeyS', 'ArrowDown', 'TD', 'BD');
-  const s = k('KeyD', 'ArrowRight', 'TR', 'BR') - k('KeyA', 'ArrowLeft', 'TL', 'BL');
+  const k = (a: string, b: string) => (keys.has(a) || keys.has(b) ? 1 : 0);
+  let f = k('KeyW', 'ArrowUp') - k('KeyS', 'ArrowDown');
+  let s = k('KeyD', 'ArrowRight') - k('KeyA', 'ArrowLeft');
+  if (stick.x || stick.y) { f = -stick.y; s = stick.x; }
 
   player.speed = 0;
   if (!f && !s) return;

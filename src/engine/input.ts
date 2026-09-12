@@ -45,7 +45,8 @@ const release = () => {
 };
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (activeId !== null) return;
+  // A mouse does nothing in this game: the keyboard plays it. Fingers and pens do.
+  if (activeId !== null || e.pointerType === 'mouse') return;
   activeId = e.pointerId;
   move(e);
   pointer.down = pointer.hit = true;
