@@ -16,7 +16,7 @@ const zzfxV = .3; // volume
 let zzfxX; // audio context — created lazily, see the local addition at the end of this file
 const zzfx = // generate samples
 (
-    volume = 1, 
+    volume = 1,
     randomness = .05,
     frequency = 220,
     attack = 0,
@@ -24,52 +24,43 @@ const zzfx = // generate samples
     release = .1,
     shape = 0,
     shapeCurve = 1,
-    slide = 0, 
-    deltaSlide = 0, 
-    pitchJump = 0, 
-    pitchJumpTime = 0, 
-    repeatTime = 0, 
+    slide = 0,
+    _deltaSlide = 0, 
+    pitchJump = 0,
+    pitchJumpTime = 0,
+    repeatTime = 0,
     noise = 0,
     modulation = 0,
     bitCrush = 0,
     delay = 0,
     sustainVolume = 1,
     decay = 0,
-    tremolo = 0,
-    filter = 0
+    tremolo = 0
 )=>
 {
     // init parameters
     const sampleRate = 44100;
-    let PI2 = Math.PI*2, 
-        abs = Math.abs, 
-        sign = v => v<0?-1:1, 
+    let PI2 = Math.PI*2,
+        abs = Math.abs,
+        sign = v => v<0?-1:1,
         startSlide = slide *= 500 * PI2 / sampleRate / sampleRate,
-        startFrequency = frequency *= 
+        startFrequency = frequency *=
             (1 + randomness*2*Math.random() - randomness) * PI2 / sampleRate,
-        modOffset = 0, // modulation offset 
+        modOffset = 0, // modulation offset
         repeat = 0,    // repeat offset
-        crush = 0,     // bit crush offset 
+        crush = 0,     // bit crush offset
         jump = 1,      // pitch jump timer
         length,        // sample length
         b = [],        // sample buffer
         t = 0,         // sample time
-        i = 0,         // sample index 
+        i = 0,         // sample index
         s = 0,         // sample value
         f,             // wave frequency
 
         // source and buffer
         source = zzfxX.createBufferSource(),
-        buffer,
+        buffer;
 
-        // biquad LP/HP filter
-        quality = 2, w = PI2 * abs(filter) * 2 / sampleRate,
-        cos = Math.cos(w), alpha = Math.sin(w) / 2 / quality,
-        a0 = 1 + alpha, a1 = -2*cos / a0, a2 = (1 - alpha) / a0,
-        b0 = (1 + sign(filter) * cos) / 2 / a0, 
-        b1 = -(sign(filter) + cos) / a0, b2 = b0,
-        x2 = 0, x1 = 0, y2 = 0, y1 = 0;
-        
     // scale by sample rate
     const minAttack = 9; // prevent pop if attack is 0
     attack = attack * sampleRate || minAttack;
@@ -77,7 +68,6 @@ const zzfx = // generate samples
     sustain *= sampleRate;
     release *= sampleRate;
     delay *= sampleRate;
-    deltaSlide *= 500 * PI2 / sampleRate**3;
     modulation *= PI2 / sampleRate;
     pitchJump *= PI2 / sampleRate;
     pitchJumpTime *= sampleRate;
@@ -90,8 +80,7 @@ const zzfx = // generate samples
     {
         if (!(++crush%(bitCrush*100|0)))                   // bit crush
         {
-            s = shape? shape>1? shape>2? shape>3? shape>4? // wave shape
-                (t/PI2%1 < shapeCurve/2)*2-1 :             // 5 square duty
+            s = shape? shape>1? shape>2? shape>3?          // wave shape
                 Math.sin(t**3) :                           // 4 noise
                 Math.max(Math.min(Math.tan(t),1),-1):      // 3 tan
                 1-(2*t/PI2%2+2)%2:                         // 2 saw
@@ -101,7 +90,7 @@ const zzfx = // generate samples
             s = (repeatTime ?
                     1 - tremolo + tremolo*Math.sin(PI2*i/repeatTime) // tremolo
                     : 1) *
-                (shape>4?s:sign(s)*abs(s)**shapeCurve) * // shape curve
+                sign(s)*abs(s)**shapeCurve *             // shape curve
                 (i < attack ? i/attack :                 // attack
                 i < attack + decay ?                     // decay
                 1-((i-attack)/decay)*(1-sustainVolume) : // decay falloff
@@ -113,26 +102,24 @@ const zzfx = // generate samples
                 0);                                      // post release
 
             s = delay ? s/2 + (delay > i ? 0 :           // delay
-                (i<length-delay? 1 : (length-i)/delay) * // release delay 
+                (i<length-delay? 1 : (length-i)/delay) * // release delay
                 b[i-delay|0]/2/volume) : s;              // sample delay
 
-            if (filter)                                  // apply filter
-                s = y1 = b2*x2 + b1*(x2=x1) + b0*(x1=s) - a2*y2 - a1*(y2=y1);
         }
 
-        f = (frequency += slide += deltaSlide) *// frequency
+        f = (frequency += slide) *              // frequency
             Math.cos(modulation*modOffset++);   // modulation
         t += f + f*noise*Math.sin(i**5);        // noise
 
         if (jump && ++jump > pitchJumpTime)     // pitch jump
-        { 
+        {
             frequency += pitchJump;             // apply pitch jump
             startFrequency += pitchJump;        // also apply to start
             jump = 0;                           // stop pitch jump time
-        } 
+        }
 
         if (repeatTime && !(++repeat % repeatTime)) // repeat
-        { 
+        {
             frequency = startFrequency;   // reset frequency
             slide = startSlide;           // reset slide
             jump ||= 1;                   // reset pitch jump time
@@ -148,7 +135,10 @@ const zzfx = // generate samples
     return source;
 }
 
-// Local additions to the upstream file, both minimal:
+// Local additions to the upstream file:
+//
+// 0. Three features none of this game's sounds use are cut for size: deltaSlide, the
+//    biquad filter, and wave shape 5 (square with duty). The parameter positions are kept.
 //
 // 1. ZzFXMicro is a global script; expose it as a module for the bundler.
 // 2. `zzfxX` was `const zzfxX = new AudioContext`, built when the module loads. Both

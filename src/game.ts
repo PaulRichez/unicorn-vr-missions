@@ -111,16 +111,12 @@ ui.innerHTML =
   '[hidden]{display:none!important}' +
   // Pressing shows: the button shrinks a touch and goes full pink for as long as it is held.
   '.x:active,.z:active{transform:scale(.92);background:#ff3fb0!important;color:#2a0730}' +
-  '.o{-webkit-text-stroke:1px #ff4fa0;color:transparent;font-style:italic}' +
   '.s{font-size:16px;letter-spacing:.14em;line-height:1.6}.w{letter-spacing:.6em}.d{opacity:.35}.r{color:#ff3b6b}.u{margin-bottom:auto}' +
   // A table is a left-aligned block that still sits in the middle of the screen: the
   // centred layer would otherwise centre every row of a table on its own width.
   '.q{font-size:13px;letter-spacing:.3em;opacity:.7;margin:1em 0}.t{display:inline-block;text-align:left}' +
-  // Every screen arrives instead of cutting in: .f rises into place, .p breathes on the
-  // prompt, and MISSION FAILED flashes white and shakes — the sting, written in type.
-  '.f{animation:f .5s both}.p{animation:p 1.2s infinite}.k{animation:s .5s}' +
-  '@keyframes f{from{opacity:0;translate:0 .6em}}@keyframes p{50%{opacity:.35}}' +
-  '@keyframes s{0%{color:#fff}25%,75%{translate:-8px}50%{translate:8px}}</style>';
+  // The prompt breathes.
+  '.p{animation:p 1.2s infinite}@keyframes p{50%{opacity:.35}}</style>';
 const top = document.createElement('div');
 const mid = document.createElement('div');
 const low = document.createElement('div');
@@ -139,7 +135,7 @@ vrBtn.className = 'x';
 vrBtn.textContent = 'ENTER VR';
 vrBtn.hidden = true;
 vrBtn.style.cssText = 'position:fixed;top:18px;left:50%;translate:-50%';
-vrBtn.onclick = () => enterVR(gl);
+vrBtn.onclick = enterVR;
 vrBtn.onpointerdown = (e) => e.stopPropagation(); // not a confirmation
 let vrOK = false;
 xrOK.then((ok) => { vrOK = ok; });
@@ -195,7 +191,7 @@ ui.addEventListener('touchstart', () => {});
 /** Writes only on change: rewriting the same HTML every frame would restart its animations. */
 const set = (el: HTMLElement, s: string) => { if (el.dataset.h !== s) el.innerHTML = el.dataset.h = s; };
 /** One line of a screen that builds itself up: the i-th fades in after the others. */
-const line = (s: string, i: number) => '<div class=f style="animation-delay:' + i * 0.6 + 's">' + s + '</div>';
+const line = (s: string, _i?: number) => '<div>' + s + '</div>';
 
 /** A touchscreen, most likely: a first guess from the media query, settled by the first
  *  pointer that actually arrives — the hints and the pad change, the rules do not. */
@@ -209,7 +205,7 @@ addEventListener('keydown', () => { COARSE = false; });
 // --- touch: a finger on the floor confirms, outside a mission; the buttons do the rest ---
 function touch() {
   if (pointer.up && phase !== 'play') pressed.add('Space');
-  pointer.hit = pointer.up = false; // consumed by this step, not by the next one too
+  pointer.up = false; // consumed by this step, not by the next one too
 }
 
 const two = (n: number) => (n < 10 ? '0' : '') + n;
@@ -391,7 +387,7 @@ function hud() {
   const inPlay = phase === 'play' && !(caughtT > 0 && caughtT < 0.9);
   set(top, phase === 'boot' || phase === 'title' || phase === 'menu' || phase === 'end' ? ''
     : '<span class=x data-p=Escape>\u2630  MISSION ' + n + '</span>' +
-      (phase === 'play' ? (level < 2 && !COARSE ? '\nSPACE · FART   ESC · MENU' : '') + (fails > 2 ? (COARSE ? '\nTHE CLOCK · SKIP' : '\nENTER · SKIP') : '') : '') +
+      (phase === 'play' && fails > 2 && !COARSE ? '\nENTER · SKIP' : '') +
       (COARSE && inPlay ? '\n' + box : ''));
   // The big button says what it does on this screen; the pad only shows where it serves.
   const label = phase === 'title' || phase === 'menu' ? 'START' : phase === 'won' ? 'NEXT' : phase === 'end' ? (phaseT > 3 ? 'AGAIN' : '') : '\u{1F4A8}';
@@ -413,21 +409,19 @@ function hud() {
   if (phase === 'boot') {
     // The machine boots the way the original's did: a log, one line at a time.
     m =
-      '<div class="s t x">' + line('UNICORN VR SYSTEM', 0) + line('LOADING PLATFORM ....... OK', 1) +
-      line('CALIBRATING HORN ....... OK', 2) + line('PAINTING SKY ........... OK', 3) +
-      line('HUNTERS ON THEIR ROUNDS  OK', 4) + '</div>';
+      '<div class="s t x">' + line('UNICORN VR SYSTEM', 0) + line('LOADING PLATFORM ....... OK', 1) + '</div>';
     l = '<span class=p>' + start + '</span>'; // the log can be skipped, and says so
   } else if (phase === 'title') {
     m =
-      '<div class=f><div class=q>TACTICAL FLATULENCE ACTION</div><span class=w>' + NAME + '<br>MISSIONS</span>' +
-      '<div class=q>NO ONE TAKES A UNICORN BY FORCE.<br>ONLY BY PATIENCE AND TRICKERY.</div></div>';
+      '<div><div class=q>TACTICAL FLATULENCE ACTION</div><span class=w>' + NAME + '<br>MISSIONS</span>' +
+      '<div class=q>NO ONE TAKES A UNICORN BY FORCE.</div></div>';
     // The prompt sits at the bottom, on the sky, not on the tiles; the pad speaks for itself.
     l = '<div class="r p" style="font-size:26px;letter-spacing:.3em">' + start + '</div>' + (COARSE ? '' : '\nARROWS / WASD · MOVE      SPACE · FART      M · MUTE');
   } else if (phase === 'menu') {
     // The original's list: vertical, looping, cursor held at the centre, a full bar on
     // the current line, [EXIT] at the bottom whether or not it has anything to do.
     // A cleared mission carries its best time on its own line; a locked one is dimmed.
-    m = '<div class=s>SNEAKING MODE · NO HORN<br><br><div class=t>';
+    m = '<div class=s>SNEAKING MODE<br><br><div class=t>';
     for (let k = -2; k <= 2; k++) {
       const i = (cursor + k + N) % N;
       const b = best(i);
@@ -437,18 +431,18 @@ function hud() {
     l = (cursor <= p ? 'TARGET ' + fmt(LEVELS[cursor].par) : 'LOCKED') + (COARSE ? '' : '\n\nUP / DOWN · CHOOSE      SPACE · START      ESC · EXIT');
   } else if (phase === 'intro') {
     m = phaseT > 0.5
-      ? line('MISSION ' + n + '<div class=s><br>' + brief + (gems.length ? '<br>TAKE THE KEY. THE GOAL WILL OPEN' : '') + '</div>', 0)
+      ? line('MISSION ' + n + '<div class=s><br>' + brief + (gems.length ? '<br>TAKE THE KEY FIRST' : '') + '</div>', 0)
       : line('START', 0);
-    l = 'TARGET ' + fmt(par) + '      LIMIT ' + fmt(limit) + (COARSE ? '' : '      ESC · MENU');
+    l = 'TARGET ' + fmt(par) + '      LIMIT ' + fmt(limit);
   } else if (phase === 'play') {
-    m = caughtT > 0 ? '<span class="o k">' + (timeUp ? 'TIME UP<br>' : '') + 'MISSION FAILED</span>' : '';
+    m = caughtT > 0 ? '<span class=r>' + (timeUp ? 'TIME UP<br>' : '') + 'MISSION FAILED</span>' : '';
     l = caughtT > 0 && caughtT < 0.9 ? 'TRY AGAIN' : COARSE ? '' : box;
   } else if (phase === 'won') {
     // The original's table of three times, filled in by the machine before you ran.
     m =
       line('MISSION ' + n + ' CLEARED', 0) + '<div class="s t x">' +
-      line('1ST    ' + fmt(par) + '<br>2ND    ' + fmt(par * 1.5) + '<br>3RD    ' + fmt(limit) + '<br><span class="' +
-        (clock <= par ? 'b' : '') + '">TIME   ' + fmt(clock) + '</span><br>BEST   ' + fmt(best(level)), 0.5) + '</div>';
+      line('1ST    ' + fmt(par) + '<br><span class="' +
+        (clock <= par ? 'b' : '') + '">TIME   ' + fmt(clock) + '</span>', 0.5) + '</div>';
     l = level + 1 < N ? 'NEXT STAGE...' : '';
   } else if (phase === 'end') {
     m =
@@ -458,7 +452,7 @@ function hud() {
           line('COLOUR KEPT   ' + Math.round((1 - grey) * 100) + ' %', 2) +
           '</div>' +
           line('<div class=s><br>' +
-            (!grey ? 'PERFECT RUN · NO ONE EVER SAW YOU' : grey === 1 ? 'THE COLOUR IS GONE.<br>LIFE IS NOT A FAIRY TALE.' : '') +
+            (!grey ? 'NO ONE EVER SAW YOU' : grey === 1 ? 'LIFE IS NOT A FAIRY TALE' : '') +
             '</div>', 3);
     l = phaseT > 3 && !COARSE ? 'SPACE · AGAIN' : '';
   }
@@ -470,16 +464,18 @@ function hud() {
 const held = new Set<string>();
 function pads() {
   let sx = 0, sy = 0;
+  const on = [0, 0, 0, 0, 0, 0];
   for (const src of xr.session.inputSources) {
     const g = src.gamepad;
     if (!g) continue;
     sx += g.axes[2] || 0;
     sy += g.axes[3] || 0;
-    for (const [i, k] of [[0, 'Space'], [4, 'Escape'], [5, fails > 2 ? 'Enter' : 'KeyR']] as [number, string][]) {
-      const id = src.handedness + i;
-      if (g.buttons[i]?.pressed) { if (!held.has(id)) pressed.add(k); held.add(id); } else held.delete(id);
-    }
+    g.buttons.forEach((b: any, i: number) => { if (b.pressed) on[i] = 1; });
   }
+  // Both hands are one pad: trigger, A or X, B or Y.
+  [[0, 'Space'], [4, 'Escape'], [5, fails > 2 ? 'Enter' : 'KeyR']].forEach(([i, k]) => {
+    if (on[i as number]) { if (!held.has(k as string)) pressed.add(k as string); held.add(k as string); } else held.delete(k as string);
+  });
   stick.x = Math.abs(sx) > 0.25 ? sx : 0;
   stick.y = Math.abs(sy) > 0.25 ? sy : 0;
   // A flick of the stick up or down steps through the mission list, like on a phone.
@@ -507,7 +503,7 @@ export function update(dt: number) {
   if (downT >= 0 && (downT += dt) > 1.7) { downT = -1; bootT = 0; }
 
   if (phase === 'boot') {
-    if (bootT > 3.6 || go) phase = 'title';
+    if (bootT > 2.4 || go) phase = 'title';
   } else if (phase === 'title') {
     if (go) { phase = 'menu'; preview(Math.min(cleared(), N - 1)); }
   } else if (phase === 'menu') {
@@ -515,7 +511,6 @@ export function update(dt: number) {
     if (pressed.has('ArrowDown') || pressed.has('KeyS')) preview((cursor + 1) % N);
     if (pressed.has('Escape')) phase = 'title';
     if (go && cursor <= cleared()) begin(cursor);
-    else if (go) sfx([0.6, , 120, 0.02, 0.05, 0.1, 2, 0.3]);
   } else if (phase === 'end') {
     // The camera backs off until the platform is small in the sky, and the horn draws
     // the arch it earned — through the same grey as everything else.
@@ -660,7 +655,6 @@ function play(dt: number) {
         // The last colour: the goal appears over the exit, in a shower of its own.
         opened = true;
         burst(wx(exit.i), wz(exit.j), 1.2);
-        sfx([0.8, , 660, 0.02, 0.15, 0.4, 1, 1.5, , , 330, 0.08, 0.1]);
       }
     }
   }
@@ -773,23 +767,19 @@ function drawHunter(h: Hunter.Hunter) {
 
 function vrText() {
   const bar = mid.querySelector('.b')?.textContent;
-  const key = top.innerText + mid.innerText + low.innerText + bar;
+  const key = [top, mid, low].map((e) => e.innerText).join('\n');
   if (key === hudKey) return;
   hudKey = key;
   tx.clearRect(0, 0, 1024, 640);
   tx.textAlign = 'center';
-  const lines = (t: string, y: number, size: number) => {
-    tx.font = 'bold ' + size + 'px ui-monospace,Consolas,monospace';
-    for (const l of t.split('\n')) {
-      tx.fillStyle = '#fff5fb';
-      if (l && l === bar) { tx.fillStyle = '#ff3fb0'; tx.fillRect(312, y - size, 400, size * 1.3); tx.fillStyle = '#2a0730'; }
-      tx.fillText(l, 512, y);
-      y += size * 1.3;
-    }
-  };
-  lines(top.innerText, 36, 24);
-  lines(mid.innerText, 120, 34);
-  lines(low.innerText, 555, 26);
+  tx.font = 'bold 34px ui-monospace,Consolas,monospace';
+  let y = 44;
+  for (const l of key.split('\n')) {
+    tx.fillStyle = '#fff5fb';
+    if (l && l === bar) { tx.fillStyle = '#ff3fb0'; tx.fillRect(312, y - 33, 400, 44); tx.fillStyle = '#2a0730'; }
+    tx.fillText(l, 512, y);
+    y += 44;
+  }
   text(tc);
 }
 

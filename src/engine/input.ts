@@ -1,22 +1,13 @@
 // Unified keyboard and pointer input. Pointer Events cover mouse, touch and pen with a
 // single set of handlers, so there is nothing mobile-specific to write.
 
-import { canvas, ROT } from './view';
+import { canvas } from './view';
 
 /** Physical codes currently held down (KeyW, ArrowLeft, Space...). */
 export const keys = new Set<string>();
 
-export const pointer = {
-  /** Position in CSS pixels, relative to the canvas. */
-  x: 0,
-  y: 0,
-  /** Held down. */
-  down: false,
-  /** Pressed during this frame only — cleared by flush(). */
-  hit: false,
-  /** Released during this frame only. */
-  up: false,
-};
+/** The one thing the game asks of a finger on the floor: whether it lifted this frame. */
+export const pointer = { up: false };
 
 /** Keys pressed during this frame only. */
 export const pressed = new Set<string>();
@@ -29,18 +20,8 @@ export const pressed = new Set<string>();
  */
 let activeId: number | null = null;
 
-const move = (e: PointerEvent) => {
-  // Undo the quarter turn of a phone held upright (see view.ts): what the page has for
-  // rotate(90deg) translateY(-100%) is X = width - y, Y = x.
-  if (ROT) { pointer.x = e.clientY; pointer.y = innerWidth - e.clientX; return; }
-  const r = canvas.getBoundingClientRect();
-  pointer.x = e.clientX - r.left;
-  pointer.y = e.clientY - r.top;
-};
-
 const release = () => {
   activeId = null;
-  pointer.down = false;
   pointer.up = true;
 };
 
@@ -48,18 +29,9 @@ canvas.addEventListener('pointerdown', (e) => {
   // A mouse does nothing in this game: the keyboard plays it. Fingers and pens do.
   if (activeId !== null || e.pointerType === 'mouse') return;
   activeId = e.pointerId;
-  move(e);
-  pointer.down = pointer.hit = true;
-  // Keep tracking when a drag leaves the canvas.
-  canvas.setPointerCapture(e.pointerId);
-});
-canvas.addEventListener('pointermove', (e) => {
-  if (e.pointerId === activeId) move(e);
 });
 canvas.addEventListener('pointerup', (e) => {
-  if (e.pointerId !== activeId) return;
-  move(e);
-  release();
+  if (e.pointerId === activeId) release();
 });
 canvas.addEventListener('pointercancel', (e) => {
   if (e.pointerId === activeId) release();
@@ -83,6 +55,6 @@ addEventListener('blur', () => {
 
 /** Call once per frame, after update: clears the "this frame only" state. */
 export function flush() {
-  pointer.hit = pointer.up = false;
+  pointer.up = false;
   pressed.clear();
 }

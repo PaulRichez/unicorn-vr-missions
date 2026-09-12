@@ -3,6 +3,8 @@
 // scaled down to toy size and set in front of the floor-level reference space; the game
 // itself keeps thinking in tiles. The player never moves, so nothing can make them sick.
 
+import { gl } from './gl';
+
 export const xr = {
   session: null as any,
   frame: null as any,
@@ -21,12 +23,11 @@ const sys = (navigator as any).xr;
 export const xrOK: Promise<boolean> = sys ? sys.isSessionSupported('immersive-vr') : Promise.resolve(false);
 
 /** Must be called from a click: a session needs a gesture the way sound does. */
-export function enterVR(gl: WebGL2RenderingContext) {
+export function enterVR() {
   sys.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] }).then(async (s: any) => {
     await (gl as any).makeXRCompatible();
     s.updateRenderState({ baseLayer: new (self as any).XRWebGLLayer(s, gl) });
-    // Without a floor the origin is the head itself: the table drops to hip height below it.
-    xr.space = await s.requestReferenceSpace('local-floor').catch(() => { xr.y = -0.65; return s.requestReferenceSpace('local'); });
+    xr.space = await s.requestReferenceSpace('local-floor');
     s.onend = () => { xr.session = xr.frame = null; xr.onEnd(); };
     xr.session = s;
   });

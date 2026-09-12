@@ -85,14 +85,6 @@ void main(){
   if (uK > .5) {
     vec3 d = normalize(vP - vec3(uE.x, 0., uE.z));
     vec3 s = mix(uC, uS, clamp(d.y * 1.2 + .44, 0., 1.));
-    // The arch is centred on a raised axis and only drawn well above the horizon: the
-    // platform floats, so anything near eye level shows up in the gap around it and
-    // reads as passing in front of the level.
-    float a = acos(clamp(dot(d, normalize(vec3(0., .62, -1.))), -1., 1.));
-    float band = (a - .46) / .3;
-    if (band > 0. && band < 1.) {
-      s = mix(s, hsv(band * .82, .8, 1.), .7 * smoothstep(.16, .34, d.y));
-    }
     o = vec4(mix(s, vec3(dot(s, vec3(.3, .59, .11))), uG), 1.);
     return;
   }

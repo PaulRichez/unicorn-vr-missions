@@ -10,7 +10,7 @@ see are painted grey on the floor. Snake knocked on walls to pull a guard off hi
 farts a rainbow. Every sighting costs the mission and, for good, a little of the world's
 colour — the ending is a rainbow drawn through whatever colour you have left.
 
-- **Categories** — Desktop + Mobile
+- **Categories** — Desktop + Mobile + WebXR (one zip, no external library)
 - **Budget** — 13,312 bytes, zipped
 - **Controls** — arrows / WASD move, Space farts, R restarts, M mutes, Escape returns to
   the menu, Enter skips a mission after three failures. The mouse does nothing. On a
@@ -18,7 +18,12 @@ colour — the ending is a rainbow drawn through whatever colour you have left.
   button that says what it does (START, fart, NEXT, AGAIN) and drains its pink while the
   next fart recharges, and the mission box, the sound box and the clock are buttons (menu,
   mute, restart or skip). A tap anywhere confirms, outside a mission. A phone held upright
-  gets the page turned a quarter turn: the game is always landscape, nothing to rotate
+  gets the page turned a quarter turn: the game is always landscape, nothing to rotate.
+  In a headset (an ENTER VR button appears when the browser has one): the platform is a
+  diorama on a table in front of you, the head is the camera, a thumbstick walks the
+  unicorn, the trigger farts or confirms, A or X goes back to the list, B or Y restarts
+  or skips, a flick of the stick up or down moves through the list. You never move, so
+  nothing can make you sick. The page's text hangs over the far edge of the platform
 
 ## How it plays
 

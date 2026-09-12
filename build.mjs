@@ -74,7 +74,7 @@ async function squeeze(js) {
     mangle: {
       toplevel: true,
       properties: {
-        regex: /^(yaw|mark|markT|route|routes|target|waiting|path|curious|seen|asleep|limit|brief|mesh|model|rgb|geo|color|age|hue|life|taken|pitch|dist|speed|down|hit|moved|leg|vao|count|par)$/,
+        regex: /^(yaw|mark|markT|route|routes|target|waiting|path|curious|seen|asleep|limit|brief|mesh|model|rgb|geo|color|age|hue|life|taken|pitch|dist|speed|down|hit|moved|leg|vao|count|par|session|frame|space|onEnd|fy|up|hunters|parts|k)$/,
       },
     },
     format: { comments: false },
