@@ -777,7 +777,7 @@ export function draw() {
     setBlend(true);
     for (const p of roofs) lifted(p, n - 1);
     setBlend(false);
-    if (phase === 'title' || phase === 'menu') arch(0, wz(0) - 4, -0.3, 0.42 + COLS * 0.05, false);
+    if (phase === 'title' || phase === 'menu') arch(0, -16, -0.3, 0.85, false);
     return;
   }
 
@@ -876,5 +876,5 @@ export function draw() {
   }
   // The title's rainbow stands behind the far edge of the platform, the one time the
   // camera is low enough to see a whole one.
-  if (phase === 'title' || phase === 'menu') arch(0, wz(0) - 4, -0.3, 0.38 + COLS * 0.045, false);
+  if (phase === 'title' || phase === 'menu') arch(0, -16, -0.3, 0.85, false); // fixed: the camera looks at the origin here
 }
