@@ -278,13 +278,17 @@ export function mark(question: boolean): Float32Array {
   );
 }
 
-/** A key, upright, facing +Z: a ring for the bow, a shaft, two teeth. About 1.1 tall. */
+/** A key in the round, standing along +Y: a square bow of four bars, a shaft, two teeth. About 1.35 tall. */
 export function keyShape(): Float32Array {
+  const bar = (w: number, h: number, x: number, y: number) => shift(prismSolid(w, 0.16, w, 0.16, h, 0.04), x, y, 0);
   return join(
-    shift(ring(0.2, 0.42), 0, 0.85, 0),
-    shift(panel(0.2, 0.8), 0, 0.3, 0),
-    shift(panel(0.28, 0.14), 0.2, 0.08, 0),
-    shift(panel(0.28, 0.14), 0.2, 0.3, 0),
+    bar(0.16, 0.8, 0, 0),
+    bar(0.3, 0.12, 0.15, 0.06),
+    bar(0.3, 0.12, 0.15, 0.28),
+    bar(0.15, 0.6, -0.22, 0.75),
+    bar(0.15, 0.6, 0.22, 0.75),
+    bar(0.6, 0.15, 0, 1.2),
+    bar(0.6, 0.15, 0, 0.75),
   );
 }
 

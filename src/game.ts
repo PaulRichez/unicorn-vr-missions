@@ -724,12 +724,10 @@ export function draw() {
   for (const g of gems) {
     if (g.taken) continue;
     const [r, gg, b] = hsv(g.hue, 0.95, 1);
-    // Upright, turning on its own axis like anything worth picking up. The shape is
-    // flat, so it is drawn as a cross of two planes, both sides: never seen edge-on.
-    for (let f = 0; f < 4; f++) {
-      place(tmpM, wx(g.i), 0.4 + Math.sin(t * 2.2) * 0.1, wz(g.j), 0, t * 1.5 + (f * Math.PI) / 2, 1.5);
-      drawMesh(keyMesh, tmpM, r, gg, b);
-    }
+    // Upright, leaning a little towards the camera, turning on its own axis like
+    // anything worth picking up.
+    place(tmpM, wx(g.i), 0.4 + Math.sin(t * 2.2) * 0.1, wz(g.j), 0.45, t * 1.5, 1.5);
+    drawMesh(keyMesh, tmpM, r, gg, b);
   }
   // A note painted on every flower tile: what you will hear if you step there.
   for (let j = 0; j < ROWS; j++) {
